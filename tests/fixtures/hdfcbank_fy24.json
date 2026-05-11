@@ -1,0 +1,69 @@
+{
+  "ticker": "HDFCBANK",
+  "exchange": "NSE",
+  "company_name": "HDFC Bank Limited",
+  "sector": "Banking",
+  "industry": "Private Sector Banks",
+  "price": {
+    "cmp": 1545.0,
+    "week52_high": 1757.8,
+    "week52_low": 1363.5,
+    "source": "nse_api",
+    "fetched_at": "2024-03-31T15:30:00"
+  },
+  "market": {
+    "market_cap": 1170000,
+    "shares_outstanding": 757.7,
+    "enterprise_value": 1180000
+  },
+  "income": {
+    "revenue_ttm": 262000,
+    "ebitda_ttm": 93000,
+    "ebit": 90000,
+    "pat_ttm": 60812,
+    "gross_profit": 200000,
+    "interest_expense": 130000,
+    "depreciation": 3000,
+    "eps_ttm": 80.3,
+    "eps_growth_5yr": 0.18,
+    "dividend_per_share": 19.5,
+    "revenue_5y": [130000, 147000, 178000, 202000, 262000],
+    "pat_5y": [26257, 31116, 36961, 44109, 60812],
+    "ebitda_5y": [50000, 58000, 68000, 78000, 93000]
+  },
+  "balance_sheet": {
+    "total_assets": 3600000,
+    "current_assets": 900000,
+    "current_liabilities": 700000,
+    "total_debt": 200000,
+    "equity": 348000,
+    "retained_earnings": 290000,
+    "cash": 180000,
+    "inventory": 0,
+    "receivables": 120000,
+    "payables": 50000,
+    "ppe": 18000,
+    "book_value_per_share": 459.3
+  },
+  "cash_flow": {
+    "cfo_ttm": 72000,
+    "capex_ttm": 5000,
+    "fcf_ttm": 67000,
+    "ocf_5y": [45000, 52000, 58000, 63000, 72000]
+  },
+  "shareholding": {
+    "promoter_holding": 0.0,
+    "promoter_pledging": 0.0,
+    "fii_holding": 49.3,
+    "dii_holding": 19.0,
+    "public_holding": 31.7,
+    "promoter_holding_history": [0.0, 0.0, 0.0, 0.0]
+  },
+  "screener_raw": {
+    "revenue_ttm": 262000,
+    "pat_ttm": 60812,
+    "ebitda_ttm": 93000,
+    "cmp": 1545.0,
+    "market_cap": 1170000
+  }
+}

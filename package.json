@@ -1,6 +1,6 @@
 {
   "name": "equilis-india",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "Plugin-first equity research skill scaffold for Indian markets.",
@@ -10,5 +10,9 @@
   "scripts": {
     "start": "node cli/index.js",
     "validate": "node cli/index.js --help"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "ora": "^8.0.1"
   }
 }

@@ -1,0 +1,69 @@
+{
+  "ticker": "INFY",
+  "exchange": "NSE",
+  "company_name": "Infosys Limited",
+  "sector": "Information Technology",
+  "industry": "IT Services",
+  "price": {
+    "cmp": 1437.5,
+    "week52_high": 1953.9,
+    "week52_low": 1351.3,
+    "source": "nse_api",
+    "fetched_at": "2024-03-31T15:30:00"
+  },
+  "market": {
+    "market_cap": 598000,
+    "shares_outstanding": 416.02,
+    "enterprise_value": 590000
+  },
+  "income": {
+    "revenue_ttm": 153670,
+    "ebitda_ttm": 40100,
+    "ebit": 33800,
+    "pat_ttm": 26248,
+    "gross_profit": 61000,
+    "interest_expense": 620,
+    "depreciation": 6300,
+    "eps_ttm": 63.08,
+    "eps_growth_5yr": 0.11,
+    "dividend_per_share": 21.0,
+    "revenue_5y": [90789, 100472, 121641, 146767, 153670],
+    "pat_5y": [16594, 19351, 22110, 24108, 26248],
+    "ebitda_5y": [23200, 27500, 32800, 37100, 40100]
+  },
+  "balance_sheet": {
+    "total_assets": 119400,
+    "current_assets": 71200,
+    "current_liabilities": 28900,
+    "total_debt": 3200,
+    "equity": 68900,
+    "retained_earnings": 52000,
+    "cash": 28600,
+    "inventory": 0,
+    "receivables": 22900,
+    "payables": 8700,
+    "ppe": 12400,
+    "book_value_per_share": 165.6
+  },
+  "cash_flow": {
+    "cfo_ttm": 31200,
+    "capex_ttm": 3800,
+    "fcf_ttm": 27400,
+    "ocf_5y": [18200, 22400, 26100, 29800, 31200]
+  },
+  "shareholding": {
+    "promoter_holding": 14.99,
+    "promoter_pledging": 0.0,
+    "fii_holding": 33.81,
+    "dii_holding": 19.23,
+    "public_holding": 31.97,
+    "promoter_holding_history": [14.99, 14.99, 14.99, 14.99]
+  },
+  "screener_raw": {
+    "revenue_ttm": 153670,
+    "pat_ttm": 26248,
+    "ebitda_ttm": 40100,
+    "cmp": 1437.5,
+    "market_cap": 598000
+  }
+}

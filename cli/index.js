@@ -1,26 +1,62 @@
 #!/usr/bin/env node
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
-import { run } from '../core/runner.js';
+/**
+ * cli/index.js
+ * Equilis India CLI — equity research tool for Indian markets.
+ * Entry point: registers all sub-commands and delegates to command handlers.
+ */
 
-const inputPath = process.argv[2];
-const outputDirFlagIndex = process.argv.indexOf('--output-dir');
-const outputDir = outputDirFlagIndex > -1 ? process.argv[outputDirFlagIndex + 1] : path.join(os.homedir(), 'Downloads');
+import { Command } from "commander";
+import { analyzeCommand } from "./commands/analyze.js";
+import { compareCommand } from "./commands/compare.js";
+import { screenCommand } from "./commands/screen.js";
+import { scenarioCommand } from "./commands/scenario.js";
+import { reportCommand } from "./commands/report.js";
 
-if (!inputPath) {
-  console.log('Usage: equilis <input.json>');
-  process.exit(1);
-}
+const program = new Command();
 
-const input = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-const result = run(input);
-const safeCompanyName = (input.company || 'equilis-report').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
-const outputFile = path.join(outputDir, `${safeCompanyName}-research-note.md`);
+program
+  .name("equilis")
+  .description("Equilis India — fundamental equity research for Indian markets")
+  .version("2.0.0");
 
-fs.mkdirSync(outputDir, { recursive: true });
-fs.writeFileSync(outputFile, result.markdown, 'utf8');
+program
+  .command("analyze <ticker>")
+  .description("Full fundamental analysis for a single ticker")
+  .option("-o, --output <format>", "Output format: markdown | pdf | json", "markdown")
+  .option("--no-cache", "Bypass cache and force live fetch")
+  .option("--skip-validation", "Skip data quality validation gate")
+  .option("--exchange <exchange>", "Exchange: NSE | BSE", "NSE")
+  .action(analyzeCommand);
 
-console.log(`Generating report for: ${input.company}`);
-console.log(`Prompt module: ${result.promptModule}`);
-console.log(`Markdown report written to: ${outputFile}`);
+program
+  .command("compare <tickers...>")
+  .description("Peer-to-peer comparison table for 2–5 tickers")
+  .option("-o, --output <format>", "Output format: markdown | pdf", "markdown")
+  .action(compareCommand);
+
+program
+  .command("screen")
+  .description("Screen stocks by financial criteria")
+  .option("--sector <sector>", "Filter by sector (e.g. IT, Banking, FMCG)")
+  .option("--min-roe <pct>", "Minimum ROE (%)", parseFloat)
+  .option("--max-pe <multiple>", "Maximum P/E multiple", parseFloat)
+  .option("--min-mcap <crore>", "Minimum market cap (₹ Crore)", parseFloat)
+  .action(screenCommand);
+
+program
+  .command("scenario <ticker>")
+  .description("Bear / Base / Bull scenario analysis")
+  .option("--bear <growth>", "Bear case PAT growth rate (decimal, e.g. 0.05)", parseFloat)
+  .option("--base <growth>", "Base case PAT growth rate (decimal, e.g. 0.12)", parseFloat)
+  .option("--bull <growth>", "Bull case PAT growth rate (decimal, e.g. 0.20)", parseFloat)
+  .option("--horizon <years>", "Projection horizon in years (default 3)", parseInt)
+  .action(scenarioCommand);
+
+program
+  .command("report <ticker>")
+  .description("Generate full PDF research report")
+  .option("-o, --output-dir <dir>", "Output directory (default ~/Downloads/equilis-reports)")
+  .option("--exchange <exchange>", "Exchange: NSE | BSE", "NSE")
+  .action(reportCommand);
+
+program.parse(process.argv);

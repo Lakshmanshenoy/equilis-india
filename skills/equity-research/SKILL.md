@@ -7,105 +7,203 @@ description: |
   Never issues buy/sell/hold recommendations — scenario-based analysis only.
   Trigger phrases: "research <ticker>", "analyse <company>", "fundamentals of <stock>",
   "forensic check on <company>", "peer comparison for <sector>", "concall summary for <ticker>".
-argument-hint: "Type of analysis: financials | concall | annual-report | forensics | valuation | technical | sector | moat | management | ipo | thesis"
+argument-hint: "Type of analysis: financials | concall | annual-report | forensics | valuation | technical | sector | moat | management | ipo | thesis | peers | scenario | macro"
+version: "2.0"
+pipeline: "core/pipeline.py"
+cli: "cli/index.js"
 ---
 
-# Equilis India — Equity Research Skill
+# Equilis India — Equity Research Skill (v2.0)
 
 ## Overview
-This skill turns the agent into a structured Indian equity researcher. It produces
-institutional-quality scenario analysis grounded in verified public data, with every
-figure cited and every output stamped with the SEBI-compliant research disclaimer.
+This skill turns the agent into a structured Indian equity researcher backed by the
+Equilis India v2 async pipeline. It produces institutional-quality scenario analysis
+grounded in live-fetched data, with every figure cited with its source and fetch
+timestamp, and every output stamped with the SEBI-compliant research disclaimer.
+
+**Architecture:** `cli/index.js` (CLI) → `core/_cli_runner.py` → `core/pipeline.py`
+(fetch → validate → normalise → analyse → scenarios → render)
 
 ## When to use this skill
 - User asks for analysis of any NSE- or BSE-listed company
 - User asks for a sector overview, macro overlay, or peer comparison
 - User asks for a forensic accounting check or red-flag scan
 - User asks to parse or summarise an earnings concall transcript
-- User asks for a DCF or ratio-based scenario model
+- User asks for a scenario model or sensitivity analysis
 
 ## When NOT to use this skill
 - User asks for a general explanation of how markets work (use general knowledge)
 - User asks about non-Indian securities (this skill is India-specific)
-- User explicitly asks for a buy/sell recommendation (redirect: explain you provide scenario
-  analysis only, not investment advice)
+- User explicitly asks for a buy/sell recommendation (redirect: explain you provide
+  scenario analysis only, not investment advice)
+
+---
+
+## Pipeline Quick Reference
+
+### CLI commands (primary interface)
+```bash
+# Full fundamental analysis with PDF report
+node cli/index.js analyze INFY --output pdf
+
+# Bear/Base/Bull scenario with custom growth rates
+node cli/index.js scenario INFY --bear 5 --base 12 --bull 20 --horizon 3
+
+# Peer sector comparison
+node cli/index.js compare INFY TCS WIPRO HCL --sector it
+
+# Screener (sector filter)
+node cli/index.js screen --sector banking --min-roe 15 --max-pe 15
+
+# Standalone report generation
+node cli/index.js report RELIANCE --output pdf
+```
+
+### Python direct (for development / Jupyter)
+```python
+import asyncio
+from core.pipeline import AnalysisPipeline, PipelineConfig
+
+pipeline = AnalysisPipeline(plugins={"nse_api": NseApiPlugin(), "screener_in": ScreenerInPlugin()})
+result = await pipeline.run(PipelineConfig(ticker="INFY"))
+print(result.report_markdown)
+```
 
 ---
 
 ## Workflow — step by step
 
-### Step 1 — Identify the company
-- Resolve the ticker: confirm NSE symbol, BSE scrip code, ISIN, and full registered name.
-- Check if the stock is in F&O — if yes, note that OI and options data are available.
-- Check market cap category: Large-cap (>₹20,000 Cr), Mid-cap (₹5,000–20,000 Cr),
-  Small-cap (<₹5,000 Cr). This determines peer set and liquidity context.
+### Step 1 — Resolve the company
+- Confirm NSE symbol, BSE scrip code, ISIN, and full registered name.
+- Check F&O eligibility (OI and options data available if yes).
+- Market cap category: Large-cap (>₹20,000 Cr), Mid-cap (₹5,000–20,000 Cr),
+  Small-cap (<₹5,000 Cr).
 
-### Step 2 — Fetch and validate financials
-Run `core/fetch.py --ticker <NSE_SYMBOL>` or manually:
-1. Go to Screener.in → search ticker → export 10-year P&L, Balance Sheet, Cash Flow.
-2. Cross-check against BSE filing portal for the most recent annual report.
-3. Run `core/validate.py` — flag any field where fetched value differs >5% from Screener.
+### Step 2 — Fetch data via pipeline
+Run `node cli/index.js analyze <TICKER>` OR invoke `AnalysisPipeline.run()`.
 
-**Fields to always fetch:**
+**Source priority (enforced by `core/fetcher.py`):**
+| Data Type     | Primary       | Fallback 1   | Fallback 2   |
+| ------------- | ------------- | ------------ | ------------ |
+| Live price    | NSE API       | Tickertape   | —            |
+| Financials    | Screener.in   | Tickertape   | BSE XBRL     |
+| Shareholding  | BSE Filings   | Screener.in  | —            |
+| Corp actions  | NSE API       | BSE Filings  | —            |
+
+**IMPORTANT:** Never use Screener.in CMP — it is stale cache. Price always from NSE API.
+
+**Fields always fetched:**
 - Revenue, EBITDA, PAT (last 5 years + TTM)
 - EPS (basic and diluted), DPS
-- Total debt, cash and equivalents, net debt
+- Total debt, cash, net debt
 - Equity share capital, reserves, book value per share
-- Operating cash flow, free cash flow (OCF minus capex)
-- ROCE, ROE, ROIC (last 5 years)
-- Promoter holding % + pledged % (last 8 quarters)
-- Current price, 52-week high/low (fetch live — never recall)
+- Operating cash flow, FCF (CFO − CapEx)
+- Promoter holding % + pledging % (last 4–8 quarters)
+- Current price, 52-week high/low (live fetch only)
 
-### Step 3 — Run the forensic checklist
-See `skills/equity-research/modules/forensic-flags.md` for full detail.
-Quick checklist:
-- [ ] PAT vs OCF divergence: if PAT grows but OCF flat/falling for 3+ years → flag
-- [ ] Receivables days trend: rising consistently → flag
-- [ ] Inventory days trend: rising consistently in non-seasonal business → flag
-- [ ] Debt: sudden large increase not explained by capex → flag
-- [ ] Promoter pledging: >20% of holding pledged → flag; rising trend → flag
-- [ ] Related-party transactions as % of revenue: >10% → flag
-- [ ] Auditor change in last 3 years: note and investigate reason
-- [ ] Contingent liabilities: large undisclosed or fast-growing → flag
-- [ ] Beneish M-score: run via `core/beneish.py` — score >-1.78 → earnings manipulation risk
+### Step 3 — Validate data quality
+`core/validator.py` runs automatically in the pipeline. Key checks:
+- Completeness: all required sections present
+- Freshness: CMP not older than 30 min; shareholding not older than 95 days
+- Internal consistency: FCF = CFO − CapEx; EPS = PAT / shares
+- Cross-source: flag >5% divergence between Screener and Tickertape on key fields
 
-### Step 4 — Compute ratios and scenarios
-See `skills/equity-research/modules/fundamentals.md` for formulas.
+### Step 4 — Compute ratios and forensic flags
+`EquityAnalyzer.compute_all()` computes:
+- Profitability: Gross Margin, EBITDA Margin, PAT Margin, ROE, ROA, ROCE
+- DuPont: 3-factor decomposition (NP Margin × Asset Turnover × Equity Multiplier)
+- Leverage: D/E, D/EBITDA, Interest Coverage, Current Ratio, Quick Ratio
+- Valuation: P/E, P/B, EV/EBITDA, EV/Sales, PEG, Dividend Yield
+- Efficiency: Receivables Days, Inventory Days, Payables Days, CCC, Asset Turnover
+- Cash Flow Quality: CFO/PAT ratio with HIGH/MEDIUM/LOW signal
+- Beneish M-Score: `core/beneish.py` (>−1.78 = possible earnings manipulation risk)
+- Altman Z-Score: academic reference only; US calibration disclaimer mandatory
 
-**Valuation scenarios — always three, never one:**
-| Scenario | Assumption | Output |
-|---|---|---|
-| Bear | Revenue growth –50% of mgmt guidance, margin compression 200 bps | Implied value |
-| Base | Revenue growth = 5-year CAGR, margins stable | Implied value |
-| Bull | Revenue growth = mgmt guidance, margin expansion 100 bps | Implied value |
+See `skills/equity-research/prompts/red_flags.md` for the forensic checklist.
 
-Present all three. Never present only the base case.
+### Step 5 — Build three scenarios
+`core/scenarios.earnings_scenarios()` or `node cli/index.js scenario <TICKER>`
 
-### Step 5 — Sector and macro overlay
-See `skills/equity-research/modules/macro-sector.md` for India-specific context.
-- Check RBI policy stance and its effect on the sector (especially banks, NBFCs, real estate)
-- Check PLI scheme applicability
-- Check Budget capex announcements relevant to the sector
-- Note FII/DII flow trend for the sector (last 3 months, NSE data)
-- Monsoon context for FMCG, agri-inputs, two-wheelers
+**Always three scenarios, never one:**
+| Scenario | Default PAT CAGR | Rationale |
+| -------- | ---------------- | --------- |
+| Bear     | 5%               | Industry headwinds, margin pressure |
+| Base     | 12%              | Historical 5Y CAGR continuation |
+| Bull     | 20%              | Operating leverage + market share gain |
 
-### Step 6 — Technical context
-See `skills/equity-research/modules/technicals.md`.
-Even for fundamental research, note:
-- Position relative to 50-DMA and 200-DMA
-- Delivery percentage vs 30-day average (NSE bhav copy)
-- If F&O stock: OI trend, PCR, max pain level
-- 52-week high/low context (is it near a breakout or breakdown zone?)
+Present a sensitivity table across PE multiples 15×–35×.
+See `skills/equity-research/prompts/scenario_base.md` for full template.
+
+### Step 6 — Sector and macro overlay
+See `skills/equity-research/prompts/macro_sensitivity.md` for sector-variable sets.
+- RBI rate stance → banking/NBFC/real estate
+- INR/USD → IT services (60–70% USD revenue)
+- Commodity prices → FMCG, metals, chemicals
+- PLI scheme status → manufacturing, electronics, pharma
+- Monsoon index → FMCG, agri, 2-wheelers, rural consumption
 
 ### Step 7 — Peer comparison
-See `skills/equity-research/modules/peer-comparison.md`.
-- Identify 4–5 closest listed peers by business model (not just sector)
-- Build ratio table: P/E, EV/EBITDA, EV/Sales, P/B, ROE, ROCE, Debt/Equity, FCF yield
-- Highlight where the subject company trades at premium or discount vs peers
-- Note if premium/discount is historically justified
+Run `node cli/index.js compare <T1> <T2> <T3> --sector <sector>`
+or use `skills/equity-research/prompts/peer_compare.md`.
 
-### Step 8 — Output and disclaimer
-- Write the report in the format defined in `docs/report-template.md`
-- Save to `~/Downloads/equilis-reports/TICKER_YYYYMMDD.md`
-- Inject disclaimer from `skills/equity-research/references/compliance-disclaimer.md`
-- If PDF requested, run `core/render.py --input <path> --output <path>.pdf`
+Build comparison across:
+1. Profitability (EBITDA Margin, PAT Margin, ROE, ROCE)
+2. Balance sheet quality (D/E, CFO/PAT, Current Ratio)
+3. Valuation (P/E, EV/EBITDA, P/B)
+4. Shareholding structure
+
+See template: `skills/equity-research/templates/peer_table.md`
+
+### Step 8 — Render report and save
+- Report auto-saved to `~/Downloads/equilis-reports/TICKER_YYYYMMDD.md`
+- PDF: `node cli/index.js report <TICKER> --output pdf`
+- Uses template: `skills/equity-research/templates/company_report.md`
+- Compliance disclaimer appended automatically by `core/renderer.py`
+
+---
+
+## Prompt Module Index
+
+| Prompt File                                   | Use For                              |
+| --------------------------------------------- | ------------------------------------ |
+| `prompts/fundamentals.md`                     | Full financial analysis (7 sections) |
+| `prompts/peer_compare.md`                     | Peer-to-peer sector comparison       |
+| `prompts/red_flags.md`                        | Forensic accounting red-flag scan    |
+| `prompts/scenario_base.md`                    | Bear/Base/Bull scenario analysis     |
+| `prompts/macro_sensitivity.md`                | Macro impact analysis                |
+
+---
+
+## Compliance Rules (HARD LIMITS)
+
+1. **Never** use: buy, sell, hold, accumulate, reduce, outperform, underperform.
+2. **Never** present a single DCF or scenario output as a price target.
+3. **Never** use recalled training-data figures for prices, ratios, or earnings.
+4. **Always** cite source and fetch timestamp for every financial figure.
+5. **Always** include the disclaimer from `references/compliance-disclaimer.md`.
+6. **Always** present Bear/Base/Bull scenarios together — never the base case alone.
+7. **Always** state Altman Z-Score disclaimer (US manufacturing calibration, 1968).
+8. **Always** state Beneish M-Score disclaimer (probabilistic screen, not allegation).
+
+---
+
+## Data Source Hierarchy
+
+| Priority | Source           | Authority For                     |
+| -------- | ---------------- | --------------------------------- |
+| 1        | BSE/NSE XBRL     | Shareholding, audited financials  |
+| 2        | Screener.in      | 10-year financial history, trends |
+| 3        | NSE API          | Live price, corporate actions     |
+| 4        | Tickertape       | Fallback for price + financials   |
+| 5        | RBI DBIE         | Macro data (rates, credit, INR)   |
+| 6        | MoneyControl/ET  | News, concall summaries only      |
+
+See `docs/data-sources.md` for full source list with rate limits and authentication notes.
+
+---
+
+## Indian FY Calendar
+- FY runs April 1 → March 31
+- Label convention: FY24 = April 2023 → March 2024
+- TTM = trailing twelve months (most recent four quarters)
+- Currency: ₹ Crore throughout (1 Crore = 10 million)
