@@ -14,7 +14,12 @@ from datetime import datetime
 from typing import Optional
 
 from core.models.company import CompanySnapshot
-from core.models.ratios import RatioSet
+from core.models.ratios import (
+    CashFlowQualityResult,
+    DuPontResult,
+    RatioSet,
+    RedFlagScanResult,
+)
 from core.models.scenario import ScenarioResult
 from core.validator import ValidationIssue
 
@@ -69,6 +74,11 @@ class ReportRenderer:
         scenarios: Optional[ScenarioResult] = None,
         red_flags: Optional[list[dict]] = None,
         validation_issues: Optional[list[ValidationIssue]] = None,
+        # Phase 2 optional sections
+        dupont_trend: Optional[DuPontResult] = None,
+        cf_quality_trend: Optional[CashFlowQualityResult] = None,
+        red_flag_result: Optional[RedFlagScanResult] = None,
+        peer_result=None,  # PeerComparisonResult — avoid circular import
     ) -> str:
         """Build and return the full markdown report string."""
         sections = [
@@ -83,10 +93,19 @@ class ReportRenderer:
                 sections.append(self._dupont_section(ratios))
             if ratios.cash_flow_quality:
                 sections.append(self._cash_flow_quality_section(ratios))
-        if red_flags:
+        # Phase 2 trend sections (multi-year)
+        if dupont_trend:
+            sections.append(self._dupont_trend_section(dupont_trend))
+        if cf_quality_trend:
+            sections.append(self._cf_quality_trend_section(cf_quality_trend))
+        if red_flag_result:
+            sections.append(self._red_flag_result_section(red_flag_result))
+        elif red_flags:
             sections.append(self._red_flags_section(red_flags))
         if scenarios:
             sections.append(self._scenarios_section(scenarios))
+        if peer_result:
+            sections.append(self._peer_section(peer_result))
         sections.append(self._sources_section(snapshot))
         sections.append(self._footer())
         return "\n\n".join(filter(None, sections))
@@ -217,14 +236,125 @@ class ReportRenderer:
     def _red_flags_section(self, flags: list[dict]) -> str:
         if not flags:
             return ""
-        severity_icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡"}
+        # Support both old format (flag/severity/evidence keys) and new format (flag_id/category/severity/observation/source keys)
+        severity_icon = {"CRITICAL": "🔴", "HIGH": "🟠", "RED": "🔴", "MEDIUM": "🟡", "YELLOW": "🟡"}
         lines = ["## Red Flag Scan", ""]
         for f in flags:
             icon = severity_icon.get(f.get("severity", "MEDIUM"), "⚪")
+            flag_label = f.get("flag_id") or f.get("flag", "Unknown")
+            evidence   = f.get("observation") or f.get("evidence", "")
             lines.append(
-                f"- {icon} **[{f.get('severity')}]** {f.get('flag')}  "
-                f"*{f.get('evidence', '')}*"
+                f"- {icon} **[{f.get('severity')}]** {flag_label}  "
+                f"*{evidence}*"
             )
+        return "\n".join(lines)
+
+    def _red_flag_result_section(self, result: RedFlagScanResult) -> str:
+        """Phase 2 red flag section using structured RedFlagScanResult."""
+        lines = [
+            "## Red Flag Scan (Phase 2)",
+            "",
+            f"> {result.summary}",
+            "",
+            f"**Summary**: 🔴 {result.red_count} high-priority · "
+            f"🟡 {result.yellow_count} noteworthy",
+            "",
+        ]
+        if result.flags:
+            severity_icon = {"RED": "🔴", "YELLOW": "🟡"}
+            lines += ["| Severity | ID | Category | Observation | Source |", "| --- | --- | --- | --- | --- |"]
+            for f in result.flags:
+                icon = severity_icon.get(f.get("severity", ""), "⚪")
+                obs = f.get("observation", "").replace("|", "\\|")
+                lines.append(
+                    f"| {icon} {f.get('severity')} | {f.get('flag_id')} | "
+                    f"{f.get('category')} | {obs} | {f.get('source')} |"
+                )
+        else:
+            lines.append("*No flags raised — all checks passed.*")
+        return "\n".join(lines)
+
+    def _dupont_trend_section(self, result: DuPontResult) -> str:
+        """Multi-year DuPont table (Phase 2)."""
+        if not result.by_year:
+            return ""
+        lines = [
+            "## DuPont Decomposition — Multi-Year Trend",
+            "",
+            "> ROE = Net Profit Margin × Asset Turnover × Equity Multiplier",
+            "",
+            "| Year | NPM | Asset Turnover | Equity Multiplier | ROE (DuPont) | ROE (Reported) |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+        for yr in result.by_year:
+            lines.append(
+                f"| {yr['fiscal_year']} "
+                f"| {yr['net_profit_margin']:.1%} "
+                f"| {yr['asset_turnover']:.2f}x "
+                f"| {yr['equity_multiplier']:.2f}x "
+                f"| {yr['roe_dupont']:.1%} "
+                f"| {yr['roe_reported']:.1%} |"
+            )
+        lines += ["", f"**Driver**: {result.driver_observation}", "", f"**Trend**: {result.trend_note}"]
+        return "\n".join(lines)
+
+    def _cf_quality_trend_section(self, result: CashFlowQualityResult) -> str:
+        """Multi-year CFO quality table (Phase 2)."""
+        if not result.by_year:
+            return ""
+        signal_icon = {"HIGH": "🟢", "MEDIUM": "🟡", "LOW": "🔴", "RED": "🔴", "INSUFFICIENT_DATA": "⚪"}
+        icon = signal_icon.get(result.overall_signal, "⚪")
+        lines = [
+            "## Cash Flow Quality — Multi-Year Trend",
+            "",
+            f"{icon} **Overall Signal: {result.overall_signal}**",
+            "",
+            "| Year | CFO (₹Cr) | PAT (₹Cr) | CFO/PAT | Signal |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+        for yr in result.by_year:
+            cfo_pat_str = f"{yr['cfo_pat']:.2f}" if yr["cfo_pat"] is not None else "N/A"
+            yr_icon = signal_icon.get(yr["signal"], "⚪")
+            lines.append(
+                f"| {yr['fiscal_year']} "
+                f"| ₹{yr['cfo_cr']:,.0f} "
+                f"| ₹{yr['pat_cr']:,.0f} "
+                f"| {cfo_pat_str} "
+                f"| {yr_icon} {yr['signal']} |"
+            )
+        if result.observations:
+            lines += ["", "**Observations:**", ""]
+            for obs in result.observations:
+                lines.append(f"- {obs}")
+        return "\n".join(lines)
+
+    def _peer_section(self, result) -> str:
+        """Peer comparison table (Phase 2). result: PeerComparisonResult."""
+        if not result or not result.comparison_table:
+            return ""
+        tickers = [t for t in result.tickers if t in result.snapshots]
+        lines = [
+            "## Peer Comparison",
+            "",
+            f"*Peer group: {', '.join(result.tickers)}*",
+            "",
+        ]
+        if result.errors:
+            lines.append("**Errors (data unavailable):**")
+            for t, err in result.errors.items():
+                lines.append(f"- {t}: {err}")
+            lines.append("")
+
+        # Build table header
+        col_header = "| Metric | " + " | ".join(tickers) + " | Sector Median |"
+        col_sep    = "| --- |" + " --- |" * (len(tickers) + 1)
+        lines += [col_header, col_sep]
+
+        for metric, row in result.comparison_table.items():
+            cells = [str(row.get(t)) if row.get(t) is not None else "N/A" for t in tickers]
+            median_val = result.sector_medians.get(metric)
+            median_str = f"{median_val:.2f}" if median_val is not None else "N/A"
+            lines.append(f"| {metric} | " + " | ".join(cells) + f" | {median_str} |")
         return "\n".join(lines)
 
     def _scenarios_section(self, sc: ScenarioResult) -> str:

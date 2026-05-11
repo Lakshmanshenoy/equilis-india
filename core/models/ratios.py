@@ -64,6 +64,46 @@ class CashFlowQuality:
 
 
 @dataclass
+class DuPontResult:
+    """Multi-year DuPont decomposition with trend analysis."""
+    by_year: list = None          # List of per-year dicts with DuPont components
+    driver_observation: str = ""  # Factual observation on dominant driver
+    trend_note: str = ""          # Factual 2-sentence trend note
+
+    def __post_init__(self):
+        if self.by_year is None:
+            self.by_year = []
+
+
+@dataclass
+class CashFlowQualityResult:
+    """Multi-year CFO/PAT quality analysis."""
+    by_year: list = None              # List of per-year dicts
+    overall_signal: str = "INSUFFICIENT_DATA"  # HIGH / MEDIUM / LOW / RED / INSUFFICIENT_DATA
+    consecutive_low_years: int = 0
+    observations: list = None         # Factual observation strings
+
+    def __post_init__(self):
+        if self.by_year is None:
+            self.by_year = []
+        if self.observations is None:
+            self.observations = []
+
+
+@dataclass
+class RedFlagScanResult:
+    """Results of the comprehensive red flag scan."""
+    flags: list = None       # List of flag dicts: {flag_id, category, severity, observation, source}
+    red_count: int = 0
+    yellow_count: int = 0
+    summary: str = ""
+
+    def __post_init__(self):
+        if self.flags is None:
+            self.flags = []
+
+
+@dataclass
 class RatioSet:
     ticker: str
     fiscal_year: str = ""

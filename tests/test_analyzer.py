@@ -22,6 +22,7 @@ from core.models.company import (
     MarketData,
     PriceData,
     ShareholdingData,
+    YearlyFinancials,
 )
 
 FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -102,6 +103,25 @@ def build_snapshot_from_fixture(data: dict) -> CompanySnapshot:
         promoter_holding_history=sh.get("promoter_holding_history", []),
     )
     snap.screener_raw = data.get("screener_raw", {})
+    # Build multi-year history (newest first)
+    for yr in data.get("history", []):
+        snap.history.append(YearlyFinancials(
+            fiscal_year=yr.get("fiscal_year", ""),
+            revenue=yr.get("revenue"),
+            pat=yr.get("pat"),
+            ebitda=yr.get("ebitda"),
+            cfo=yr.get("cfo"),
+            capex=yr.get("capex"),
+            total_assets=yr.get("total_assets"),
+            equity=yr.get("equity"),
+            receivables=yr.get("receivables"),
+            inventory=yr.get("inventory"),
+            other_income=yr.get("other_income"),
+            pbt=yr.get("pbt"),
+            related_party_txn=yr.get("related_party_txn"),
+            shares_outstanding=yr.get("shares_outstanding"),
+            roce=yr.get("roce"),
+        ))
     return snap
 
 

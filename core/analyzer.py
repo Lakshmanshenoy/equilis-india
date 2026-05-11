@@ -19,11 +19,14 @@ from typing import Optional
 from core.models.company import CompanySnapshot
 from core.models.ratios import (
     CashFlowQuality,
+    CashFlowQualityResult,
     DuPontDecomposition,
+    DuPontResult,
     EfficiencyRatios,
     LeverageRatios,
     ProfitabilityRatios,
     RatioSet,
+    RedFlagScanResult,
     ValuationRatios,
 )
 
@@ -369,3 +372,387 @@ class EquityAnalyzer:
             "interpretation": interpretation,
             "disclaimer": ALTMAN_DISCLAIMER,
         }
+
+    # ── Phase 2: Multi-year trend analysis ────────────────────────────────────
+
+    def compute_dupont_trend(self, snapshot: CompanySnapshot) -> DuPontResult:
+        """
+        3-factor DuPont decomposition across history (newest first).
+        ROE = NPM × Asset Turnover × Equity Multiplier.
+        """
+        results_by_year = []
+        for year in snapshot.history:
+            if not all([year.pat, year.revenue, year.total_assets, year.equity]):
+                continue
+            npm = year.pat / year.revenue
+            at = year.revenue / year.total_assets
+            em = year.total_assets / year.equity
+            roe_dupont = npm * at * em
+            roe_reported = year.pat / year.equity
+            results_by_year.append({
+                "fiscal_year":        year.fiscal_year,
+                "net_profit_margin":  round(npm, 4),
+                "asset_turnover":     round(at, 4),
+                "equity_multiplier":  round(em, 4),
+                "roe_dupont":         round(roe_dupont, 4),
+                "roe_reported":       round(roe_reported, 4),
+                "reconciliation_gap": round(abs(roe_dupont - roe_reported), 4),
+            })
+
+        latest = results_by_year[0] if results_by_year else {}
+        return DuPontResult(
+            by_year=results_by_year,
+            driver_observation=self._identify_roe_driver(latest, results_by_year),
+            trend_note=self._dupont_trend_note(results_by_year),
+        )
+
+    def _identify_roe_driver(self, latest: dict, history: list) -> str:
+        if not latest:
+            return "Insufficient data for driver analysis."
+        npm = latest["net_profit_margin"]
+        at  = latest["asset_turnover"]
+        em  = latest["equity_multiplier"]
+        factors = {"net profit margin": npm, "asset turnover": at, "equity multiplier": em}
+        dominant = max(factors, key=lambda k: abs(factors[k] - 1.0))
+        if dominant == "equity multiplier" and em > 3.0:
+            return (
+                f"ROE is substantially amplified by leverage (equity multiplier: {em:.2f}x). "
+                f"Asset turnover is {at:.2f}x and net profit margin is {npm:.1%}. "
+                f"Research note: high equity multiplier warrants examination of debt levels "
+                f"relative to sector norms."
+            )
+        elif dominant == "net profit margin":
+            return (
+                f"ROE is primarily driven by net profit margin ({npm:.1%}), "
+                f"with asset turnover at {at:.2f}x and equity multiplier at {em:.2f}x."
+            )
+        else:
+            return (
+                f"ROE is driven by asset turnover efficiency ({at:.2f}x), "
+                f"with net profit margin at {npm:.1%} and equity multiplier at {em:.2f}x."
+            )
+
+    def _dupont_trend_note(self, history: list) -> str:
+        if len(history) < 3:
+            return "Insufficient history for trend analysis."
+        latest_npm = history[0]["net_profit_margin"]
+        oldest_npm = history[-1]["net_profit_margin"]
+        latest_em  = history[0]["equity_multiplier"]
+        oldest_em  = history[-1]["equity_multiplier"]
+        npm_dir = "expanded" if latest_npm > oldest_npm else "compressed"
+        em_dir  = "increased" if latest_em > oldest_em else "decreased"
+        return (
+            f"Net profit margin has {npm_dir} from {oldest_npm:.1%} "
+            f"({history[-1]['fiscal_year']}) to {latest_npm:.1%} ({history[0]['fiscal_year']}). "
+            f"Financial leverage (equity multiplier) has {em_dir} from {oldest_em:.2f}x "
+            f"to {latest_em:.2f}x over the same period."
+        )
+
+    def compute_cf_quality_trend(self, snapshot: CompanySnapshot) -> CashFlowQualityResult:
+        """
+        CFO/PAT quality score across history (newest first).
+        Signals earnings quality — higher is generally associated with better cash conversion.
+        """
+        cf_data = []
+        for year in snapshot.history:
+            if year.cfo is None or year.pat is None:
+                continue
+            if year.pat == 0:
+                ratio  = None
+                signal = "INDETERMINATE"
+            else:
+                ratio  = year.cfo / year.pat
+                signal = self._cf_signal(ratio, year.cfo, year.pat)
+            cf_data.append({
+                "fiscal_year": year.fiscal_year,
+                "cfo_cr":  round(year.cfo, 1),
+                "pat_cr":  round(year.pat, 1),
+                "cfo_pat": round(ratio, 2) if ratio is not None else None,
+                "signal":  signal,
+            })
+
+        consecutive_low = self._consecutive_low_cf(cf_data)
+        overall_signal  = self._overall_cf_signal(cf_data)
+        observations    = self._cf_observations(cf_data, consecutive_low)
+        return CashFlowQualityResult(
+            by_year=cf_data,
+            overall_signal=overall_signal,
+            consecutive_low_years=consecutive_low,
+            observations=observations,
+        )
+
+    def _cf_signal(self, ratio: float, cfo: float, pat: float) -> str:
+        if cfo < 0 and pat > 0:
+            return "RED"
+        if ratio >= 1.0:
+            return "HIGH"
+        if ratio >= 0.8:
+            return "MEDIUM"
+        return "LOW"
+
+    def _consecutive_low_cf(self, cf_data: list) -> int:
+        count = 0
+        for year in cf_data:   # newest first
+            if year["signal"] in ("LOW", "RED"):
+                count += 1
+            else:
+                break
+        return count
+
+    def _overall_cf_signal(self, cf_data: list) -> str:
+        if not cf_data:
+            return "INSUFFICIENT_DATA"
+        signals = [d["signal"] for d in cf_data[:3]]
+        if "RED" in signals:
+            return "RED"
+        if signals.count("LOW") >= 2:
+            return "LOW"
+        if signals.count("HIGH") >= 2:
+            return "HIGH"
+        return "MEDIUM"
+
+    def _cf_observations(self, cf_data: list, consecutive_low: int) -> list:
+        obs = []
+        for year in cf_data:
+            if year["signal"] == "RED":
+                obs.append(
+                    f"{year['fiscal_year']}: CFO was ₹{year['cfo_cr']}Cr (negative) while PAT "
+                    f"was ₹{year['pat_cr']}Cr (positive). Significant accruals divergence "
+                    f"warrants examination of working capital movements and non-cash items."
+                )
+            elif year["signal"] == "LOW":
+                obs.append(
+                    f"{year['fiscal_year']}: CFO/PAT ratio was {year['cfo_pat']:.2f} — "
+                    f"cash conversion below 0.80. Research note: accruals may be elevated."
+                )
+        if consecutive_low >= 2:
+            obs.append(
+                f"CFO/PAT has been below 0.80 for {consecutive_low} consecutive years. "
+                f"Sustained low cash conversion warrants examination of receivables, "
+                f"inventory, and deferred revenue trends."
+            )
+        return obs
+
+    def run_red_flag_scan(self, snapshot: CompanySnapshot) -> RedFlagScanResult:
+        """
+        Comprehensive red flag scan across accounting, governance, and capital allocation.
+        All flags are research observations — not investment conclusions.
+        """
+        flags: list[dict] = []
+        flags.extend(self._check_receivables_growth(snapshot))
+        flags.extend(self._check_other_income(snapshot))
+        flags.extend(self._check_cf_divergence_history(snapshot))
+        flags.extend(self._check_sustained_low_cf(snapshot))
+        flags.extend(self._check_promoter_pledge(snapshot))
+        flags.extend(self._check_promoter_selling(snapshot))
+        flags.extend(self._check_capex_returns(snapshot))
+        flags.extend(self._check_equity_dilution(snapshot))
+
+        red_count    = sum(1 for f in flags if f["severity"] == "RED")
+        yellow_count = sum(1 for f in flags if f["severity"] == "YELLOW")
+        return RedFlagScanResult(
+            flags=flags,
+            red_count=red_count,
+            yellow_count=yellow_count,
+            summary=self._flag_summary(flags, red_count, yellow_count),
+        )
+
+    def _cagr(self, history: list, field: str, years: int) -> Optional[float]:
+        """Compute CAGR from history (newest first). vals[0]=newest, vals[-1]=oldest."""
+        vals = [getattr(y, field, None) for y in history[:years + 1]]
+        vals = [v for v in vals if v is not None and v > 0]
+        if len(vals) < 2:
+            return None
+        return (vals[0] / vals[-1]) ** (1 / (len(vals) - 1)) - 1
+
+    def _check_receivables_growth(self, snapshot: CompanySnapshot) -> list:
+        flags = []
+        if len(snapshot.history) < 4:   # need 3-year CAGR = 4 data points
+            return flags
+        rev_cagr = self._cagr(snapshot.history, "revenue", years=3)
+        rec_cagr = self._cagr(snapshot.history, "receivables", years=3)
+        if rev_cagr and rec_cagr and rec_cagr > rev_cagr * 1.2:
+            flags.append({
+                "flag_id":     "RECEIVABLES_GROWTH_EXCEEDS_REVENUE",
+                "category":    "Accounting & Accruals",
+                "severity":    "YELLOW",
+                "observation": (
+                    f"Receivables 3-year CAGR ({rec_cagr:.1%}) exceeds revenue 3-year CAGR "
+                    f"({rev_cagr:.1%}) by more than 20%. "
+                    f"Warrants examination of debtor ageing and collection efficiency."
+                ),
+                "source": "financials",
+            })
+        return flags
+
+    def _check_other_income(self, snapshot: CompanySnapshot) -> list:
+        flags = []
+        years_checked = [y for y in snapshot.history[:3]
+                         if y.other_income is not None and y.pbt and y.pbt > 0]
+        high_oi_years = [y for y in years_checked if (y.other_income / y.pbt) > 0.15]
+        if len(high_oi_years) >= 2:
+            avg_ratio = sum(y.other_income / y.pbt for y in high_oi_years) / len(high_oi_years)
+            flags.append({
+                "flag_id":     "HIGH_OTHER_INCOME",
+                "category":    "Accounting & Accruals",
+                "severity":    "YELLOW",
+                "observation": (
+                    f"Other income exceeded 15% of PBT in {len(high_oi_years)} of the last "
+                    f"3 years (average: {avg_ratio:.1%}). Warrants examination of recurring "
+                    f"vs one-time nature of other income."
+                ),
+                "source": "financials",
+            })
+        return flags
+
+    def _check_cf_divergence_history(self, snapshot: CompanySnapshot) -> list:
+        flags = []
+        for year in snapshot.history[:3]:
+            if year.cfo is not None and year.pat is not None:
+                if year.cfo < 0 and year.pat > 0:
+                    flags.append({
+                        "flag_id":     "NEGATIVE_CFO_POSITIVE_PAT",
+                        "category":    "Accounting & Accruals",
+                        "severity":    "RED",
+                        "observation": (
+                            f"{year.fiscal_year}: CFO was ₹{year.cfo:.0f}Cr (negative) while "
+                            f"PAT was ₹{year.pat:.0f}Cr (positive). Significant accruals "
+                            f"divergence. Warrants examination of working capital movements, "
+                            f"capitalised expenses, and deferred revenue."
+                        ),
+                        "source": "financials",
+                    })
+        return flags
+
+    def _check_sustained_low_cf(self, snapshot: CompanySnapshot) -> list:
+        flags = []
+        low_years = []
+        for year in snapshot.history[:3]:
+            if year.cfo is not None and year.pat and year.pat > 0:
+                if (year.cfo / year.pat) < 0.8:
+                    low_years.append(year.fiscal_year)
+        if len(low_years) >= 2:
+            flags.append({
+                "flag_id":     "SUSTAINED_LOW_CF_QUALITY",
+                "category":    "Accounting & Accruals",
+                "severity":    "YELLOW",
+                "observation": (
+                    f"CFO/PAT below 0.80 in {', '.join(low_years)}. Sustained low cash "
+                    f"conversion warrants examination of receivables, inventory, and "
+                    f"deferred revenue trends."
+                ),
+                "source": "financials",
+            })
+        return flags
+
+    def _check_promoter_pledge(self, snapshot: CompanySnapshot) -> list:
+        flags = []
+        sh = snapshot.shareholding
+        if sh is None:
+            return flags
+        pledge = sh.promoter_pledging
+        if pledge and pledge > 30:
+            flags.append({
+                "flag_id":     "HIGH_PROMOTER_PLEDGE",
+                "category":    "Corporate Governance",
+                "severity":    "YELLOW",
+                "observation": (
+                    f"Promoter pledge is {pledge:.1f}% of promoter holding (latest quarter). "
+                    f"Context note: pledge levels above 30% are commonly flagged for closer "
+                    f"examination."
+                ),
+                "source": "BSE shareholding filings",
+            })
+        # Check rising pledge from history (last 4 quarters)
+        ph = sh.promoter_holding_history
+        if ph and len(ph) >= 4:
+            # promoter_holding_history is already shareholding %, use pledging trend if available
+            pass
+        return flags
+
+    def _check_promoter_selling(self, snapshot: CompanySnapshot) -> list:
+        flags = []
+        sh = snapshot.shareholding
+        if sh is None or not sh.promoter_holding_history or len(sh.promoter_holding_history) < 2:
+            return flags
+        latest  = sh.promoter_holding_history[0]
+        oldest  = sh.promoter_holding_history[-1]
+        if oldest and latest and (latest - oldest) < -3:
+            flags.append({
+                "flag_id":     "PROMOTER_SELLING",
+                "category":    "Corporate Governance",
+                "severity":    "YELLOW",
+                "observation": (
+                    f"Promoter holding reduced by {abs(latest - oldest):.1f} percentage points "
+                    f"over the tracked period. Source: BSE shareholding filings. Context note: "
+                    f"reductions can reflect diversification, estate planning, or liquidity needs."
+                ),
+                "source": "BSE shareholding filings",
+            })
+        return flags
+
+    def _check_capex_returns(self, snapshot: CompanySnapshot) -> list:
+        flags = []
+        if len(snapshot.history) < 3:
+            return flags
+        high_capex_years = [
+            y for y in snapshot.history[:3]
+            if y.capex and y.revenue and (y.capex / y.revenue) > 0.15
+        ]
+        roce_declining = (
+            snapshot.history[0].roce is not None and
+            snapshot.history[2].roce is not None and
+            snapshot.history[0].roce < snapshot.history[2].roce
+        )
+        if len(high_capex_years) >= 2 and roce_declining:
+            flags.append({
+                "flag_id":     "CAPEX_WITHOUT_RETURN",
+                "category":    "Capital Allocation",
+                "severity":    "YELLOW",
+                "observation": (
+                    f"Capex exceeded 15% of revenue in {len(high_capex_years)} of the last "
+                    f"3 years, while ROCE declined from "
+                    f"{snapshot.history[2].roce:.1%} ({snapshot.history[2].fiscal_year}) "
+                    f"to {snapshot.history[0].roce:.1%} ({snapshot.history[0].fiscal_year}). "
+                    f"Warrants examination of capex project status and expected return timeline."
+                ),
+                "source": "financials",
+            })
+        return flags
+
+    def _check_equity_dilution(self, snapshot: CompanySnapshot) -> list:
+        flags = []
+        if len(snapshot.history) < 2:
+            return flags
+        shares_new = snapshot.history[0].shares_outstanding
+        shares_old = snapshot.history[-1].shares_outstanding
+        if shares_old and shares_new and shares_old > 0:
+            dilution = (shares_new - shares_old) / shares_old
+            if dilution > 0.05:
+                flags.append({
+                    "flag_id":     "EQUITY_DILUTION",
+                    "category":    "Capital Allocation",
+                    "severity":    "YELLOW",
+                    "observation": (
+                        f"Shares outstanding grew by {dilution:.1%} over "
+                        f"{len(snapshot.history) - 1} years "
+                        f"({shares_old:.2f}Cr to {shares_new:.2f}Cr). Warrants examination of "
+                        f"the purpose of equity issuance (acquisitions, QIP, ESOPs, rights issue)."
+                    ),
+                    "source": "financials",
+                })
+        return flags
+
+    def _flag_summary(self, flags: list, red_count: int, yellow_count: int) -> str:
+        if not flags:
+            return "No anomalies detected across the standard red flag checklist."
+        parts = []
+        if red_count:
+            parts.append(f"{red_count} high-priority observation(s) require attention")
+        if yellow_count:
+            parts.append(f"{yellow_count} observation(s) warrant further examination")
+        return (
+            ". ".join(parts) + ". "
+            "All flags are factual observations based on publicly available data. "
+            "They do not constitute conclusions about management integrity or investment quality."
+        )

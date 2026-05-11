@@ -65,5 +65,42 @@
     "ebitda_ttm": 40100,
     "cmp": 1437.5,
     "market_cap": 598000
-  }
+  },
+  "history": [
+    {
+      "fiscal_year": "FY24",
+      "revenue": 153670, "pat": 26248, "ebitda": 40100, "cfo": 31200,
+      "total_assets": 119400, "equity": 68900, "pbt": 34200,
+      "receivables": 22900, "inventory": 0, "capex": 3800,
+      "shares_outstanding": 416.02, "roce": 0.33
+    },
+    {
+      "fiscal_year": "FY23",
+      "revenue": 146767, "pat": 24108, "ebitda": 37100, "cfo": 29800,
+      "total_assets": 108000, "equity": 61000, "pbt": 31000,
+      "receivables": 21500, "inventory": 0, "capex": 3200,
+      "shares_outstanding": 416.02, "roce": 0.31
+    },
+    {
+      "fiscal_year": "FY22",
+      "revenue": 121641, "pat": 22110, "ebitda": 32800, "cfo": 26100,
+      "total_assets": 95000, "equity": 54000, "pbt": 28000,
+      "receivables": 19200, "inventory": 0, "capex": 2800,
+      "shares_outstanding": 416.02, "roce": 0.29
+    },
+    {
+      "fiscal_year": "FY21",
+      "revenue": 100472, "pat": 19351, "ebitda": 27500, "cfo": 22400,
+      "total_assets": 82000, "equity": 47000, "pbt": 24000,
+      "receivables": 17000, "inventory": 0, "capex": 2500,
+      "shares_outstanding": 416.02, "roce": 0.27
+    },
+    {
+      "fiscal_year": "FY20",
+      "revenue": 90789, "pat": 16594, "ebitda": 23200, "cfo": 18200,
+      "total_assets": 74000, "equity": 43000, "pbt": 21000,
+      "receivables": 15200, "inventory": 0, "capex": 2200,
+      "shares_outstanding": 416.02, "roce": 0.24
+    }
+  ]
 }

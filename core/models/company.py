@@ -86,6 +86,26 @@ class ShareholdingData:
 
 
 @dataclass
+class YearlyFinancials:
+    """Per-year financial snapshot used for multi-year trend analysis."""
+    fiscal_year: str = ""
+    revenue: Optional[float] = None
+    pat: Optional[float] = None
+    ebitda: Optional[float] = None
+    cfo: Optional[float] = None
+    capex: Optional[float] = None
+    total_assets: Optional[float] = None
+    equity: Optional[float] = None
+    receivables: Optional[float] = None
+    inventory: Optional[float] = None
+    other_income: Optional[float] = None
+    pbt: Optional[float] = None
+    related_party_txn: Optional[float] = None
+    shares_outstanding: Optional[float] = None
+    roce: Optional[float] = None
+
+
+@dataclass
 class SourceMeta:
     source_name: str
     source_url: str
@@ -116,6 +136,12 @@ class CompanySnapshot:
 
     sources: list[SourceMeta] = field(default_factory=list)
     snapshot_date: Optional[datetime] = None
+
+    # Multi-year history (newest first, e.g. FY24 at index 0)
+    history: list["YearlyFinancials"] = field(default_factory=list)
+
+    # Computed ratios (attached after analysis stage, used by peer pipeline)
+    ratios: Optional[object] = None
 
     def get_metric(self, metric: str, source: str) -> Optional[float]:
         """Retrieve a specific metric from a named raw source dict."""

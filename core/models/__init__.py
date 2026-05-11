@@ -1,6 +1,22 @@
-from .company import CompanySnapshot
+from .company import CompanySnapshot, YearlyFinancials
 from .financials import FinancialStatement
-from .ratios import RatioSet
+from .peer import PeerComparisonResult
+from .ratios import (
+    RatioSet,
+    DuPontResult,
+    CashFlowQualityResult,
+    RedFlagScanResult,
+)
 from .scenario import ScenarioResult
 
-__all__ = ["CompanySnapshot", "FinancialStatement", "RatioSet", "ScenarioResult"]
+__all__ = [
+    "CompanySnapshot",
+    "YearlyFinancials",
+    "FinancialStatement",
+    "PeerComparisonResult",
+    "RatioSet",
+    "DuPontResult",
+    "CashFlowQualityResult",
+    "RedFlagScanResult",
+    "ScenarioResult",
+]

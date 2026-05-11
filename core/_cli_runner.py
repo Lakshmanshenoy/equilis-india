@@ -110,10 +110,85 @@ async def run_scenario(args) -> dict:
     return {"success": True, "stdout": md, "reportPath": path}
 
 
+async def run_compare(args) -> dict:
+    """
+    Fetch and compare a peer group. Tickers passed via --tickers.
+    Returns a JSON envelope with a markdown comparison table.
+    """
+    from core.cache import CacheManager
+    from core.fetcher import DataFetcher
+    from core.analyzer import EquityAnalyzer
+    from core.peer import PeerComparisonPipeline
+    from core.normalizer import DataNormalizer
+
+    tickers = args.tickers or (args.ticker.split(",") if args.ticker else [])
+    if not tickers:
+        return {"success": False, "stdout": "No tickers provided for compare.", "reportPath": None}
+
+    cache    = None if args.no_cache else CacheManager()
+    fetcher  = DataFetcher(plugins=build_plugins(args.no_cache), cache=cache)
+    analyzer = EquityAnalyzer()
+
+    pipeline = PeerComparisonPipeline(fetcher=fetcher, validator=None, analyzer=analyzer)
+    result   = await pipeline.run(tickers)
+
+    # Build a simple markdown table
+    md_lines = [f"# Peer Comparison — {', '.join(tickers)}\n"]
+    if result.errors:
+        md_lines.append("## Errors\n")
+        for t, err in result.errors.items():
+            md_lines.append(f"- {t}: {err}")
+        md_lines.append("")
+
+    if result.comparison_table:
+        active = list(result.comparison_table.keys())
+        header = "| Metric | " + " | ".join(result.snapshots.keys()) + " | Sector Median |"
+        sep    = "| --- |" + " --- |" * (len(result.snapshots) + 1)
+        md_lines += [header, sep]
+        for metric in active:
+            row = result.comparison_table[metric]
+            cells = [
+                str(row.get(t)) if row.get(t) is not None else "N/A"
+                for t in result.snapshots
+            ]
+            median = result.sector_medians.get(metric)
+            median_str = f"{median:.2f}" if median is not None else "N/A"
+            md_lines.append(f"| {metric} | " + " | ".join(cells) + f" | {median_str} |")
+
+    from core.renderer import ReportRenderer
+    renderer  = ReportRenderer()
+    md        = "\n".join(md_lines)
+    label     = "_".join(t.upper() for t in tickers[:3])
+    path      = renderer.save(md, f"{label}_peer")
+    return {"success": True, "stdout": md, "reportPath": path}
+
+
+async def run_warmup(args) -> dict:
+    """Pre-populate cache for one or more tickers."""
+    from core.cache import CacheManager
+    from core.fetcher import DataFetcher
+
+    tickers = args.tickers or ([args.ticker] if args.ticker else [])
+    if not tickers:
+        return {"success": False, "stdout": "No tickers provided for warmup.", "reportPath": None}
+
+    cache   = CacheManager()
+    fetcher = DataFetcher(plugins=build_plugins(), cache=cache)
+
+    output_lines: list[str] = []
+    for ticker in tickers:
+        results = cache.warm_ticker(ticker.upper(), fetcher)
+        output_lines.append(f"{ticker.upper()}:")
+        for data_type, status in results.items():
+            output_lines.append(f"  {data_type}: {status}")
+
+    return {"success": True, "stdout": "\n".join(output_lines), "reportPath": None}
+
+
 async def main():
     parser = argparse.ArgumentParser(description="Equilis India CLI Python runner")
     parser.add_argument("--command", default="analyze",
-                        choices=["analyze", "compare", "scenario", "report", "screen"])
+                        choices=["analyze", "compare", "scenario", "report", "screen", "warmup"])
     parser.add_argument("--ticker", default="")
     parser.add_argument("--tickers", nargs="+", default=[])
     parser.add_argument("--output", default="markdown", choices=["markdown", "pdf", "json"])
@@ -139,6 +214,10 @@ async def main():
             result = await run_analyze(args)
         elif args.command == "scenario":
             result = await run_scenario(args)
+        elif args.command == "compare":
+            result = await run_compare(args)
+        elif args.command == "warmup":
+            result = await run_warmup(args)
         else:
             result = {
                 "success": False,

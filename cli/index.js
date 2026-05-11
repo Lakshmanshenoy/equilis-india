@@ -11,6 +11,7 @@ import { compareCommand } from "./commands/compare.js";
 import { screenCommand } from "./commands/screen.js";
 import { scenarioCommand } from "./commands/scenario.js";
 import { reportCommand } from "./commands/report.js";
+import { registerWarmup } from "./commands/warmup.js";
 
 const program = new Command();
 
@@ -58,5 +59,7 @@ program
   .option("-o, --output-dir <dir>", "Output directory (default ~/Downloads/equilis-reports)")
   .option("--exchange <exchange>", "Exchange: NSE | BSE", "NSE")
   .action(reportCommand);
+
+registerWarmup(program);
 
 program.parse(process.argv);
