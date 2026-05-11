@@ -2,6 +2,43 @@
 core/validate.py
 Validates fetched financial data against expected ranges and cross-source consistency.
 Usage: python core/validate.py --file data/RELIANCE.json
+
+Expected JSON structure:
+{
+  "ticker": "RELIANCE",
+  "fetched_at": "2025-05-01T10:00:00Z",
+  "fundamentals": {
+    "revenue_5y":         [450000, 480000, 510000, 530000, 560000],
+    "ebitda_5y":          [80000,  85000,  90000,  95000, 100000],
+    "pat_5y":             [23000,  25000,  28000,  30000,  32000],
+    "ocf_5y":             [20000,  22000,  25000,  27000,  29000],
+    "total_debt":         120000,
+    "cash":               35000,
+    "eps_ttm":            47.5,
+    "promoter_holding":   50.1,
+    "promoter_pledging":  0.0,
+    "trade_receivables_5y": [18000, 20000, 22000, 24000, 26000],
+    "inventory_5y":       [60000, 65000, 70000, 72000, 75000],
+    "trade_payables_5y":  [40000, 43000, 46000, 48000, 51000],
+    "screener": {
+      "revenue_ttm":          560000,
+      "pat_ttm":               32000,
+      "total_debt":           120000,
+      "book_value_per_share":    185
+    },
+    "bse": {
+      "revenue_ttm":          561200,
+      "pat_ttm":               32100,
+      "total_debt":           120000,
+      "book_value_per_share":    185
+    }
+  },
+  "price": {
+    "cmp":        2850.0,
+    "week52_high": 3024.0,
+    "week52_low":  2220.0
+  }
+}
 """
 
 import argparse
@@ -60,9 +97,10 @@ def run_validation(data: dict) -> list:
     fundamentals = data.get("fundamentals", {})
     price = data.get("price", {})
 
-    # Required fields
+    # FIX 1: ebitda_5y added to required fields
     required = [
         "fundamentals.revenue_5y",
+        "fundamentals.ebitda_5y",        # FIX: was missing
         "fundamentals.pat_5y",
         "fundamentals.ocf_5y",
         "fundamentals.total_debt",
@@ -103,6 +141,25 @@ def run_validation(data: dict) -> list:
                 "fetch may be stale. Re-fetch."
             )
 
+    # FIX 2: validate_cross_source is now actually called
+    # Compares Screener.in figures against BSE filing figures for key fields.
+    # fetch.py must populate fundamentals.screener and fundamentals.bse sub-dicts.
+    screener = fundamentals.get("screener", {})
+    bse = fundamentals.get("bse", {})
+    cross_check_fields = [
+        "revenue_ttm",
+        "pat_ttm",
+        "total_debt",
+        "book_value_per_share",
+    ]
+    for field in cross_check_fields:
+        if field in screener and field in bse:
+            errors.extend(validate_cross_source(
+                screener[field], "Screener.in",
+                bse[field], "BSE filing",
+                field
+            ))
+
     return errors
 
 
@@ -113,6 +170,11 @@ def main():
 
     with open(args.file) as f:
         data = json.load(f)
+
+    ticker = data.get("ticker", "UNKNOWN")
+    fetched_at = data.get("fetched_at", "N/A")
+    print(f"\nValidating: {ticker}  |  Fetched: {fetched_at}")
+    print("-" * 50)
 
     errors = run_validation(data)
 

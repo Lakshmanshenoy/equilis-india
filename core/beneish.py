@@ -1,12 +1,27 @@
 """
 core/beneish.py
 Computes the Beneish M-score for earnings manipulation risk assessment.
-Usage: python core/beneish.py --ticker RELIANCE --file data/RELIANCE.json
-Requires two years of financial data in the JSON file.
+Usage: python core/beneish.py --file data/RELIANCE.json
+
+Requires two years of financial data in the JSON file under:
+  fundamentals.year1  (more recent year)
+  fundamentals.year2  (prior year)
+
+Each year dict should contain:
+  revenue, gross_profit, total_assets, current_assets,
+  ppe, depreciation, sga, total_debt, trade_receivables,
+  net_income, ocf, cogs
 """
 
 import argparse
 import json
+
+
+# FIX: Components with the highest formula coefficients.
+# If any of these are None, the model refuses to produce a score
+# rather than silently substituting 1.0 and distorting the result.
+# Coefficients: TATA=4.679, SGI=0.892, DSRI=0.920
+HIGH_WEIGHT_COMPONENTS = {"TATA", "SGI", "DSRI"}
 
 
 def safe_div(numerator, denominator):
@@ -18,10 +33,7 @@ def safe_div(numerator, denominator):
 def compute_beneish(year1: dict, year2: dict) -> dict:
     """
     year1 = more recent year, year2 = prior year.
-    Each dict should have: revenue, gross_profit, total_assets, current_assets,
-    ppe (property plant equipment), depreciation, sga (selling general admin),
-    total_debt, trade_receivables, net_income, ocf, cogs.
-    Returns dict with each component and final M-score.
+    Returns dict with each component, final M-score, and missing_fields count.
     """
     # 1. DSRI — Days Sales Receivable Index
     dsri = safe_div(
@@ -50,8 +62,14 @@ def compute_beneish(year1: dict, year2: dict) -> dict:
     sgi = safe_div(year1.get("revenue"), year2.get("revenue"))
 
     # 5. DEPI — Depreciation Index
-    dep_rate1 = safe_div(year1.get("depreciation"), (year1.get("depreciation", 0) or 0) + (year1.get("ppe", 1) or 1))
-    dep_rate2 = safe_div(year2.get("depreciation"), (year2.get("depreciation", 0) or 0) + (year2.get("ppe", 1) or 1))
+    dep_rate1 = safe_div(
+        year1.get("depreciation"),
+        (year1.get("depreciation", 0) or 0) + (year1.get("ppe", 1) or 1)
+    )
+    dep_rate2 = safe_div(
+        year2.get("depreciation"),
+        (year2.get("depreciation", 0) or 0) + (year2.get("ppe", 1) or 1)
+    )
     depi = safe_div(dep_rate2, dep_rate1)
 
     # 6. SGAI — SG&A Index
@@ -76,11 +94,21 @@ def compute_beneish(year1: dict, year2: dict) -> dict:
         "DEPI": depi, "SGAI": sgai, "LVGI": lvgi, "TATA": tata
     }
 
-    # M-score formula (Beneish 1999)
     none_count = sum(1 for v in components.values() if v is None)
-    if none_count > 2:
+
+    # FIX: Refuse to score if any high-weight component is missing.
+    # Previously, None was substituted with 1.0, which silently added
+    # up to +4.679 (TATA coefficient) to the score, potentially flagging
+    # a clean company as a manipulator due to missing data alone.
+    missing_high_weight = any(
+        components[k] is None for k in HIGH_WEIGHT_COMPONENTS
+    )
+
+    if none_count > 2 or missing_high_weight:
         m_score = None
+        score_refused = True
     else:
+        score_refused = False
         def n(v): return v if v is not None else 1.0
         m_score = (
             -4.840
@@ -94,7 +122,12 @@ def compute_beneish(year1: dict, year2: dict) -> dict:
             - 0.327 * n(lvgi)
         )
 
-    return {"components": components, "m_score": m_score, "missing_fields": none_count}
+    return {
+        "components": components,
+        "m_score": m_score,
+        "missing_fields": none_count,
+        "score_refused": score_refused,
+    }
 
 
 def interpret(m_score) -> str:
@@ -116,8 +149,17 @@ def main():
     with open(args.file) as f:
         data = json.load(f)
 
+    # FIX: --ticker removed from argparse; ticker and fetch date now read
+    # from the data file itself (set by fetch.py), so the output header
+    # is always consistent with the data being scored.
+    ticker = data.get("ticker", "UNKNOWN")
+    fetched_at = data.get("fetched_at", "N/A")
+
+    print(f"\n{'=' * 52}")
+    print(f"  Beneish M-score — {ticker}  |  Fetched: {fetched_at}")
+    print(f"{'=' * 52}")
+
     fundamentals = data.get("fundamentals", {})
-    # Expect fundamentals to contain year1 and year2 sub-dicts
     year1 = fundamentals.get("year1")
     year2 = fundamentals.get("year2")
 
@@ -128,14 +170,24 @@ def main():
     result = compute_beneish(year1, year2)
     score = result["m_score"]
 
-    print(f"\nBeneish M-score: {score:.4f}" if score else "\nBeneish M-score: N/A")
+    print(f"\nM-score:        {f'{score:.4f}' if score is not None else 'N/A (refused)'}")
     print(f"Interpretation: {interpret(score)}")
     print(f"Missing fields: {result['missing_fields']}/8")
+
+    if result["score_refused"] and result["missing_fields"] <= 2:
+        missing = [k for k in HIGH_WEIGHT_COMPONENTS if result["components"][k] is None]
+        print(f"Score refused:  high-weight component(s) missing — {', '.join(missing)}")
+        print("                Ensure trade_receivables and revenue are present in both years.")
+
     print("\nComponents:")
     for k, v in result["components"].items():
-        print(f"  {k}: {v:.4f}" if v is not None else f"  {k}: N/A")
-    print("\nNote: Beneish was calibrated on US data. Apply with India-specific judgment.")
-    print("RPT (related-party transactions) manipulation is not captured by this model.")
+        flag = " ← high weight" if k in HIGH_WEIGHT_COMPONENTS else ""
+        print(f"  {k:<6} {f'{v:.4f}' if v is not None else 'N/A':>10}{flag}")
+
+    print("\nNotes:")
+    print("  Beneish was calibrated on US data. Apply with India-specific judgment.")
+    print("  RPT (related-party transactions) manipulation is not captured by this model.")
+    print("  A flag here means investigate further — not a conclusion of fraud.")
 
 
 if __name__ == "__main__":
