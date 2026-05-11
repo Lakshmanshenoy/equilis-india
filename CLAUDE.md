@@ -1,0 +1,28 @@
+# Equilis India — agent instructions
+
+## Always do this first
+Before responding to any equity or market research query:
+1. Read `skills/equity-research/SKILL.md` in full.
+2. Check `skills/equity-research/references/data-sources.md` for the correct data source for each field you need.
+3. Fetch live data — never use recalled or assumed figures.
+4. Run the validation gate (`core/validate.py`) on every number before it appears in output.
+5. Append the disclaimer from `skills/equity-research/references/compliance-disclaimer.md` to every output.
+
+## Never do this
+- Never output a price target as a recommendation.
+- Never use phrases like "buy", "sell", "hold", "accumulate", "reduce", "outperform", "underperform".
+- Never present a single DCF output as a conclusion — always use a sensitivity table.
+- Never use a financial figure without citing its source and the date it was fetched.
+- Never rely on your training data for current prices, ratios, or earnings — always fetch.
+
+## Default data hierarchy (India)
+1. BSE/NSE XBRL filings (annual reports, DRHP, shareholding pattern) — highest authority
+2. Screener.in — 10-year financial history, ratio trends
+3. RBI DBIE portal — macro and credit data
+4. NSE bhav copy — delivery %, OI, volume data
+5. MoneyControl / Economic Times — news, concall summaries (corroborate, don't cite alone)
+
+## Output format
+- Always save reports to `~/Downloads/equilis-reports/` as `TICKER_YYYYMMDD.md`.
+- Always include the standard disclaimer block at the end.
+- For PDF output, use the `core/render.py` script.

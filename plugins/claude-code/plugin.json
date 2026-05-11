@@ -1,0 +1,34 @@
+{
+  "name": "equilis-india",
+  "version": "0.1.0",
+  "description": "Indian equity research skill for Claude Code. Provides scenario-based fundamental analysis, forensic checks, peer comparison, and macro overlay for NSE/BSE stocks. No investment recommendations.",
+  "skill": "skills/equity-research/SKILL.md",
+  "commands": [
+    {
+      "name": "research",
+      "description": "Run full equity research pipeline for a ticker",
+      "usage": "/equilis:research <TICKER>",
+      "example": "/equilis:research RELIANCE"
+    },
+    {
+      "name": "forensic",
+      "description": "Run forensic flags checklist only",
+      "usage": "/equilis:forensic <TICKER>",
+      "example": "/equilis:forensic ADANIENT"
+    },
+    {
+      "name": "peer",
+      "description": "Build peer comparison table for a sector",
+      "usage": "/equilis:peer <SECTOR>",
+      "example": "/equilis:peer IT"
+    },
+    {
+      "name": "concall",
+      "description": "Parse and summarise an earnings concall transcript",
+      "usage": "/equilis:concall <TICKER> <QUARTER>",
+      "example": "/equilis:concall TCS Q3FY25"
+    }
+  ],
+  "compliance": "research-only",
+  "disclaimer": "skills/equity-research/references/compliance-disclaimer.md"
+}
