@@ -1,0 +1,14 @@
+{
+  "name": "equilis-india",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Plugin-first equity research skill scaffold for Indian markets.",
+  "bin": {
+    "equilis": "./cli/index.js"
+  },
+  "scripts": {
+    "start": "node cli/index.js",
+    "validate": "node cli/index.js --help"
+  }
+}

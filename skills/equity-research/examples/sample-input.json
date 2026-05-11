@@ -1,0 +1,32 @@
+{
+  "company": "Example Industries",
+  "ticker": "EXIND",
+  "analysisType": "valuation",
+  "summary": "Sample research input for a long-form report.",
+  "sources": [
+    "Annual report FY2025",
+    "Q4FY2025 concall transcript"
+  ],
+  "financials": {
+    "revenue": 4128,
+    "ebitdaMargin": 25.2,
+    "roe": 18.4
+  },
+  "assumptions": [
+    "Revenue growth moderates over FY26-FY28",
+    "Margins remain near current levels"
+  ],
+  "risks": [
+    "Raw material inflation",
+    "Slower demand in core end markets"
+  ],
+  "peers": [
+    "Peer A",
+    "Peer B",
+    "Peer C"
+  ],
+  "valuation": {
+    "method": "DCF",
+    "baseCase": "Scenario-based fair value range"
+  }
+}
