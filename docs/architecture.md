@@ -154,7 +154,7 @@ core/renderer.py
 | Cache      | diskcache       | ≥5.6        | Optional; falls back to no-cache        |
 | HTML parse | BeautifulSoup4  | ≥4.12       | Screener.in parsing                     |
 | PDF export | weasyprint      | ≥61.0       | Primary; fpdf2 as fallback              |
-| Testing    | pytest          | ≥8.0        | All 32 tests passing                    |
+| Testing    | pytest          | ≥8.0        | Fixture-backed unit and integration suite |
 | Currency   | ₹ Crore         | —           | All values normalised to Crore          |
 
 ---

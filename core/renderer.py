@@ -13,6 +13,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
+from core.compliance import render_disclaimer
 from core.models.company import CompanySnapshot
 from core.models.ratios import (
     CashFlowQualityResult,
@@ -27,23 +28,7 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = os.path.expanduser("~/Downloads/equilis-reports")
 
-COMPLIANCE_FOOTER = """\
----
-**COMPLIANCE DISCLAIMER**
-
-This document has been prepared by Equilis India for research and educational purposes only.
-It does not constitute investment advice, a solicitation, or a recommendation to buy or sell
-any security. All figures are sourced from public filings and third-party data providers;
-accuracy cannot be guaranteed. Scenario outputs are mathematical computations of stated
-assumptions only — they are not earnings forecasts or price targets.
-
-Equilis India is not a registered Investment Adviser under SEBI (Investment Advisers)
-Regulations, 2013. Past performance is not indicative of future results.
-Readers should conduct their own due diligence and consult a SEBI-registered financial
-adviser before making any investment decision.
-
-*Generated: {ts} | Version: equilis-india/2.0*
-"""
+COMPLIANCE_FOOTER = render_disclaimer(ticker="TICKER")
 
 
 def _pct(value: Optional[float]) -> str:
@@ -107,7 +92,7 @@ class ReportRenderer:
         if peer_result:
             sections.append(self._peer_section(peer_result))
         sections.append(self._sources_section(snapshot))
-        sections.append(self._footer())
+        sections.append(self._footer(snapshot))
         return "\n\n".join(filter(None, sections))
 
     def save(
@@ -397,6 +382,9 @@ class ReportRenderer:
             )
         return "\n".join(lines)
 
-    def _footer(self) -> str:
-        ts = datetime.now().strftime("%d %b %Y %H:%M IST")
-        return COMPLIANCE_FOOTER.format(ts=ts)
+    def _footer(self, snapshot: CompanySnapshot) -> str:
+        return render_disclaimer(
+            ticker=snapshot.ticker,
+            data_date=snapshot.snapshot_date,
+            prepared_at=datetime.now(),
+        )

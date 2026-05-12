@@ -1,7 +1,11 @@
 """
 core/validate.py
-Validates fetched financial data against expected ranges and cross-source consistency.
-Usage: python core/validate.py --file data/RELIANCE.json
+Compatibility validator for fetched JSON files.
+
+The canonical live pipeline validator is `core.validator.DataValidator`, which
+operates on normalised CompanySnapshot objects. This module is kept for raw JSON
+fixtures, manual data imports, and the explicit `python core/validate.py --file`
+gate documented in the equity-research skill.
 
 Expected JSON structure:
 {
@@ -45,7 +49,9 @@ import argparse
 import json
 import sys
 
-TOLERANCE = 0.05  # 5% tolerance for cross-source discrepancy
+from core.validator import CROSS_SOURCE_TOLERANCE
+
+TOLERANCE = CROSS_SOURCE_TOLERANCE  # canonical cross-source discrepancy tolerance
 
 
 def validate_field_present(data: dict, field: str, path: str = "") -> list:

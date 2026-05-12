@@ -151,7 +151,7 @@ print(result.scenario_result)
 .venv/bin/pytest tests/ -q
 ```
 
-All 112 tests should pass. The test suite uses fixture JSON files under `tests/fixtures/`
+All tests should pass. The test suite uses fixture JSON files under `tests/fixtures/`
 and `CacheManager(disabled=True)` — no network calls are made.
 
 ---
@@ -161,7 +161,7 @@ and `CacheManager(disabled=True)` — no network calls are made.
 | Output type | Default path |
 | --- | --- |
 | PDF reports (CLI) | `~/Downloads/equilis-reports/` |
-| PDF reports (Python) | `~/Downloads/` |
+| Branded reports (`report`) | `~/Downloads/equilis-reports/` |
 | Cache | `~/.equilis/cache/` |
 
 Pass `--output-dir <path>` to the `report` command to override the PDF destination.
@@ -172,7 +172,7 @@ Pass `--output-dir <path>` to the `report` command to override the PDF destinati
 
 | Flag | Applies to | Effect |
 | --- | --- | --- |
-| `--output pdf` | `analyze`, `compare` | Saves a branded PDF to `~/Downloads/` |
+| `--output pdf` | `analyze` | Saves a PDF report |
 | `--no-cache` | `analyze`, `report` | Bypasses disk cache, forces live fetch |
 | `--skip-validation` | `analyze` | Skips the data quality gate (dev only) |
 | `--exchange BSE` | `analyze`, `report` | Uses BSE scrip code lookup instead of NSE |

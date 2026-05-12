@@ -24,6 +24,7 @@ export async function compareCommand(tickers, options) {
     "--tickers", ...tickers.map((t) => t.toUpperCase()),
     "--output", options.output || "markdown",
   ];
+  if (options.noCache) args.push("--no-cache");
 
   try {
     const result = await withSpinner(

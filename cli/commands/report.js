@@ -27,6 +27,8 @@ export async function reportCommand(ticker, options) {
     "--exchange", options.exchange || "NSE",
     "--format", fmt_type,
   ];
+  if (options.skipValidation) args.push("--skip-validation");
+  if (options.noCache) args.push("--no-cache");
 
   try {
     const result = await withSpinner(
@@ -34,7 +36,7 @@ export async function reportCommand(ticker, options) {
       () => runPython(args),
     );
     const reportPath = result.reportPath || `${outputDir}/${ticker.toUpperCase()}_*.pdf`;
-    printResult(true, `PDF report saved to: ${fmt.cyan(reportPath)}`);
+    printResult(true, `${fmt_type.toUpperCase()} report saved to: ${fmt.cyan(reportPath)}`);
   } catch (err) {
     printResult(false, `Report generation failed: ${err.message}`);
     process.exit(1);

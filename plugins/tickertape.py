@@ -64,7 +64,8 @@ class TickertapePlugin(BasePlugin):
         url = f"{TICKERTAPE_BASE}/stocks/{ticker.upper()}/financials"
         try:
             data = await self._get_json(url)
-            return self._make_result(data.get("data", {}), url, is_fallback=True)
+            payload = data.get("data", {})
+            return self._make_result(self._normalise_financials(payload), url, is_fallback=True)
         except Exception as e:
             logger.warning(f"[tickertape] Failed to fetch financials for {ticker}: {e}")
             raise

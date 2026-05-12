@@ -115,6 +115,7 @@ class AnalysisPipeline:
             try:
                 issues = self._validator.validate(snapshot)
                 result.validation_issues = issues
+                snapshot.validation_issues = issues
             except DataQualityError as dqe:
                 result.error = str(dqe)
                 result.validation_issues = dqe.issues
@@ -129,6 +130,7 @@ class AnalysisPipeline:
         try:
             ratios = self._analyzer.compute_all(snapshot)
             red_flags = self._analyzer.red_flag_scan(snapshot)
+            snapshot.ratios = ratios
             result.ratios = ratios
             result.red_flags = red_flags
         except Exception as e:
@@ -140,6 +142,7 @@ class AnalysisPipeline:
         result.stage = "scenarios"
         try:
             sc = earnings_scenarios(snapshot, **config.scenario_params)
+            snapshot.scenarios = sc
             result.scenarios = sc
         except Exception as e:
             logger.warning(f"[pipeline] Scenarios failed (non-fatal): {e}")
@@ -158,11 +161,9 @@ class AnalysisPipeline:
 
             if config.save_report:
                 if config.output_format == "pdf":
-                    from plugins.pdf_export import PdfExportPlugin
-                    exporter = PdfExportPlugin()
-                    result.report_path = exporter.render_markdown_to_pdf(
-                        markdown, config.ticker
-                    )
+                    from plugins.pdf_export import PDFReportExporter
+                    exporter = PDFReportExporter()
+                    result.report_path = exporter.export_analysis(snapshot)
                 else:
                     result.report_path = self._renderer.save(markdown, config.ticker)
 

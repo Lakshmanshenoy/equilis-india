@@ -111,7 +111,8 @@ class BseFilingsPlugin(BasePlugin):
         params = {"scripcode": code}
         try:
             data = await self._get_json(url, params=params)
-            return self._make_result(data, f"{url}?scripcode={code}")
+            normalised = self._normalise_shareholding(data, ticker)
+            return self._make_result(normalised, f"{url}?scripcode={code}")
         except Exception as e:
             logger.warning(f"[bse_filings] Failed to fetch shareholding for {ticker}: {e}")
             raise

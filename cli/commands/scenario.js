@@ -23,6 +23,8 @@ export async function scenarioCommand(ticker, options) {
   if (options.base != null) args.push("--base", String(options.base));
   if (options.bull != null) args.push("--bull", String(options.bull));
   if (options.horizon != null) args.push("--horizon", String(options.horizon));
+  if (options.skipValidation) args.push("--skip-validation");
+  if (options.noCache) args.push("--no-cache");
 
   try {
     const result = await withSpinner(

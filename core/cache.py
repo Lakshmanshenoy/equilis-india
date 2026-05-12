@@ -4,11 +4,12 @@ Disk-based cache with per-data-type TTLs.
 Cache directory: ~/.equilis/cache  (gitignored at runtime)
 """
 
+import logging
 import os
-import hashlib
 from typing import Any, Optional
 
 CACHE_DIR = os.path.expanduser("~/.equilis/cache")
+logger = logging.getLogger(__name__)
 
 # TTLs in seconds
 TTL_CONFIG = {
@@ -47,6 +48,10 @@ class CacheManager:
             self._cache    = diskcache.Cache(cache_dir)
             self._available = True
         except ImportError:
+            self._cache    = {}
+            self._available = False
+        except Exception as exc:
+            logger.warning("[cache] diskcache unavailable at %s: %s", cache_dir, exc)
             self._cache    = {}
             self._available = False
 

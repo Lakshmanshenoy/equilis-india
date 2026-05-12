@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.pipeline import AnalysisPipeline, PipelineConfig
+from core.compliance import render_disclaimer
+from core.validator import DataValidator
+from core.cache import CacheManager
 
 
 def build_plugins(no_cache: bool = False) -> dict:
@@ -47,9 +50,33 @@ def build_plugins(no_cache: bool = False) -> dict:
     return plugins
 
 
+def build_cache(no_cache: bool = False) -> CacheManager:
+    """Return a cache instance, respecting CLI no-cache semantics."""
+    return CacheManager(disabled=True) if no_cache else CacheManager()
+
+
+def normalise_growth_arg(value: float | None) -> float | None:
+    """
+    CLI growth inputs are percentages: 5 means 5%.
+    For backwards compatibility, decimal inputs below 1 are accepted as-is.
+    """
+    if value is None:
+        return None
+    return value / 100.0 if abs(value) >= 1 else value
+
+
+def validate_snapshot(snapshot, skip_validation: bool = False) -> list:
+    """Run the canonical object-level validation gate and attach issues."""
+    if skip_validation:
+        snapshot.validation_issues = []
+        return []
+    issues = DataValidator().validate(snapshot)
+    snapshot.validation_issues = issues
+    return issues
+
+
 async def run_analyze(args) -> dict:
-    from core.cache import CacheManager
-    cache = None if args.no_cache else CacheManager()
+    cache = build_cache(args.no_cache)
     pipeline = AnalysisPipeline(plugins=build_plugins(args.no_cache), cache=cache)
     config = PipelineConfig(
         ticker=args.ticker,
@@ -69,24 +96,25 @@ async def run_analyze(args) -> dict:
 
 
 async def run_scenario(args) -> dict:
-    from core.cache import CacheManager
     from core.fetcher import DataFetcher
     from core.normalizer import DataNormalizer
+    from core.renderer import ReportRenderer
     from core.scenarios import earnings_scenarios
 
-    cache = CacheManager()
-    fetcher = DataFetcher(plugins=build_plugins(), cache=cache)
+    cache = build_cache(args.no_cache)
+    fetcher = DataFetcher(plugins=build_plugins(args.no_cache), cache=cache)
     bundle = await fetcher.fetch_all(args.ticker)
     normalizer = DataNormalizer()
     snapshot = normalizer.normalise(bundle, ticker=args.ticker, exchange=args.exchange)
+    validation_issues = validate_snapshot(snapshot, args.skip_validation)
 
     assumptions = {}
     if args.bear is not None:
-        assumptions["Bear"] = args.bear
+        assumptions["Bear"] = normalise_growth_arg(args.bear)
     if args.base is not None:
-        assumptions["Base"] = args.base
+        assumptions["Base"] = normalise_growth_arg(args.base)
     if args.bull is not None:
-        assumptions["Bull"] = args.bull
+        assumptions["Bull"] = normalise_growth_arg(args.bull)
 
     sc = earnings_scenarios(
         snapshot,
@@ -94,20 +122,13 @@ async def run_scenario(args) -> dict:
         horizon_years=args.horizon or 3,
     )
 
-    from core.renderer import ReportRenderer
     renderer = ReportRenderer()
-    from core.pipeline import AnalysisPipeline  # reuse render helper
-    md_lines = [f"# Scenario Analysis — {args.ticker.upper()}\n"]
-    for s in sc.scenarios:
-        md_lines.append(f"## {s.label} ({s.assumption_pat_growth} PAT CAGR)")
-        if s.pe_scenarios:
-            md_lines.append("| PE | Value |")
-            md_lines.append("| --- | --- |")
-            for k, v in s.pe_scenarios.items():
-                md_lines.append(f"| {k} | ₹{v:,.1f} |")
-        md_lines.append("")
-    md_lines.append(f"\n> {sc.compliance_note}")
-    md = "\n".join(md_lines)
+    snapshot.scenarios = sc
+    md = renderer.render_markdown(
+        snapshot=snapshot,
+        scenarios=sc,
+        validation_issues=validation_issues,
+    )
     path = renderer.save(md, args.ticker + "_scenario")
     return {"success": True, "stdout": md, "reportPath": path}
 
@@ -117,21 +138,19 @@ async def run_compare(args) -> dict:
     Fetch and compare a peer group. Tickers passed via --tickers.
     Returns a JSON envelope with a markdown comparison table.
     """
-    from core.cache import CacheManager
     from core.fetcher import DataFetcher
     from core.analyzer import EquityAnalyzer
     from core.peer import PeerComparisonPipeline
-    from core.normalizer import DataNormalizer
 
     tickers = args.tickers or (args.ticker.split(",") if args.ticker else [])
     if not tickers:
         return {"success": False, "stdout": "No tickers provided for compare.", "reportPath": None}
 
-    cache    = None if args.no_cache else CacheManager()
+    cache    = build_cache(args.no_cache)
     fetcher  = DataFetcher(plugins=build_plugins(args.no_cache), cache=cache)
     analyzer = EquityAnalyzer()
 
-    pipeline = PeerComparisonPipeline(fetcher=fetcher, validator=None, analyzer=analyzer)
+    pipeline = PeerComparisonPipeline(fetcher=fetcher, validator=DataValidator(), analyzer=analyzer)
     result   = await pipeline.run(tickers)
 
     # Build a simple markdown table
@@ -160,6 +179,7 @@ async def run_compare(args) -> dict:
     from core.renderer import ReportRenderer
     renderer  = ReportRenderer()
     md        = "\n".join(md_lines)
+    md        = md + "\n\n" + render_disclaimer(ticker="_".join(tickers))
     label     = "_".join(t.upper() for t in tickers[:3])
     path      = renderer.save(md, f"{label}_peer")
     return {"success": True, "stdout": md, "reportPath": path}
@@ -167,14 +187,13 @@ async def run_compare(args) -> dict:
 
 async def run_warmup(args) -> dict:
     """Pre-populate cache for one or more tickers."""
-    from core.cache import CacheManager
     from core.fetcher import DataFetcher
 
     tickers = args.tickers or ([args.ticker] if args.ticker else [])
     if not tickers:
         return {"success": False, "stdout": "No tickers provided for warmup.", "reportPath": None}
 
-    cache   = CacheManager()
+    cache   = build_cache(False)
     fetcher = DataFetcher(plugins=build_plugins(), cache=cache)
 
     output_lines: list[str] = []
@@ -192,15 +211,24 @@ async def run_report(args) -> dict:
     Generate a branded PDF (or HTML) report using PDFReportExporter.
     Falls back to run_analyze() markdown if Weasyprint is unavailable.
     """
-    from core.cache import CacheManager
-    from core.fetcher import DataFetcher
-    from core.normalizer import DataNormalizer
-
-    cache     = None if args.no_cache else CacheManager()
-    fetcher   = DataFetcher(plugins=build_plugins(args.no_cache), cache=cache)
-    bundle    = await fetcher.fetch_all(args.ticker)
-    normalizer = DataNormalizer()
-    snapshot  = normalizer.normalise(bundle, ticker=args.ticker, exchange=args.exchange)
+    cache = build_cache(args.no_cache)
+    pipeline = AnalysisPipeline(plugins=build_plugins(args.no_cache), cache=cache)
+    config = PipelineConfig(
+        ticker=args.ticker,
+        exchange=args.exchange,
+        output_format="markdown",
+        skip_validation=args.skip_validation,
+        save_report=False,
+    )
+    result = await pipeline.run(config)
+    if not result.success:
+        return {
+            "success": False,
+            "stdout": result.error or "Report generation failed before render.",
+            "reportPath": None,
+            "stage": result.stage,
+        }
+    snapshot = result.snapshot
 
     dest_dir = args.output_dir or None
 
@@ -224,6 +252,40 @@ async def run_report(args) -> dict:
     except Exception as exc:
         logger.warning("PDF export failed (%s), falling back to markdown", exc)
         return await run_analyze(args)
+
+
+async def run_screen(args) -> dict:
+    """Run a quantitative screen and append the standard disclaimer."""
+    from core.fetcher import DataFetcher
+    from core.screener import FundamentalScreener
+    from core.renderer import ReportRenderer
+
+    filters = []
+    if args.min_roe is not None:
+        filters.append(f"roe>={args.min_roe}")
+    if args.max_pe is not None:
+        filters.append(f"pe_ratio<={args.max_pe}")
+    if args.min_mcap is not None:
+        filters.append(f"market_cap>={args.min_mcap}")
+
+    fetcher = DataFetcher(plugins=build_plugins(args.no_cache), cache=build_cache(args.no_cache))
+    screener = FundamentalScreener(fetcher)
+    result = await screener.run(sector=args.sector or None, filters=filters)
+
+    lines = [
+        "# Quantitative Screen",
+        "",
+        f"Universe size: {result.universe_size}",
+        f"Matched: {result.matched_count}",
+        "",
+        "| Ticker | Sector |",
+        "| --- | --- |",
+    ]
+    for row in result.results:
+        lines.append(f"| {row.get('ticker')} | {row.get('sector', 'Unknown')} |")
+    md = "\n".join(lines) + "\n\n" + render_disclaimer(ticker="SCREEN")
+    path = ReportRenderer().save(md, "SCREEN")
+    return {"success": True, "stdout": md, "reportPath": path}
 
 
 async def main():
@@ -262,6 +324,8 @@ async def main():
             result = await run_compare(args)
         elif args.command == "warmup":
             result = await run_warmup(args)
+        elif args.command == "screen":
+            result = await run_screen(args)
         else:
             result = {
                 "success": False,

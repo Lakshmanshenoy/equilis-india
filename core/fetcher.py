@@ -92,7 +92,9 @@ class DataFetcher:
         ttl_minutes = TTL_CONFIG.get(data_type, 60)
         if not result or not hasattr(result, "fetched_at"):
             return False
-        delta = (datetime.now(timezone.utc).replace(tzinfo=None) - result.fetched_at).total_seconds() / 60
+        fetched_at = result.fetched_at
+        now = datetime.now(timezone.utc) if getattr(fetched_at, "tzinfo", None) else datetime.now()
+        delta = (now - fetched_at).total_seconds() / 60
         return delta < ttl_minutes
 
     async def _try_sources(
@@ -140,22 +142,22 @@ class DataFetcher:
         return None
 
     async def fetch_price(self, ticker: str) -> Optional[FetchResult]:
-        return await self._try_sources(
+        return await self._fetch_with_retry(
             "price", ticker, PRICE_SOURCES, "fetch_price"
         )
 
     async def fetch_financials(self, ticker: str) -> Optional[FetchResult]:
-        return await self._try_sources(
+        return await self._fetch_with_retry(
             "financials", ticker, FINANCIAL_SOURCES, "fetch_financials"
         )
 
     async def fetch_shareholding(self, ticker: str) -> Optional[FetchResult]:
-        return await self._try_sources(
+        return await self._fetch_with_retry(
             "shareholding", ticker, SHAREHOLDING_SOURCES, "fetch_shareholding"
         )
 
     async def fetch_corporate_actions(self, ticker: str) -> Optional[FetchResult]:
-        return await self._try_sources(
+        return await self._fetch_with_retry(
             "corporate_actions", ticker, CORPORATE_ACTION_SOURCES,
             "fetch_corporate_actions"
         )

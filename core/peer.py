@@ -88,6 +88,8 @@ class PeerComparisonPipeline:
 
         raw      = await self.fetcher.fetch_all(ticker)
         snapshot = DataNormalizer().normalise(raw, ticker=ticker)
+        if self.validator is not None:
+            snapshot.validation_issues = self.validator.validate(snapshot)
         snapshot.ratios = self.analyzer.compute_all(snapshot)
         return snapshot
 

@@ -5,7 +5,7 @@ Do not modify the disclaimer text. Do not abbreviate it.
 
 ---
 
-DISCLAIMER — RESEARCH PURPOSES ONLY
+COMPLIANCE DISCLAIMER — RESEARCH PURPOSES ONLY
 
 This document has been prepared by [Equilis India Research / individual researcher name]
 for informational and educational purposes only.

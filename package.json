@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Plugin-first equity research skill scaffold for Indian markets.",
+  "description": "Compliance-first equity research pipeline for Indian markets.",
   "bin": {
     "equilis": "./cli/index.js"
   },

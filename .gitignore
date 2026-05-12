@@ -1,6 +1,11 @@
 node_modules/
 dist/
 build/
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
 .DS_Store
 *.log
 *.pdf
+*.html

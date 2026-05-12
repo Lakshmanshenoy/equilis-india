@@ -24,21 +24,15 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from weasyprint import HTML
 from weasyprint.text.fonts import FontConfiguration
 
+from core.compliance import render_disclaimer
+
 logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "skills" / "equity-research" / "templates"
 DEFAULT_DEST   = Path.home() / "Downloads"
 REPORT_VERSION = "1.0.0"
 
-DISCLAIMER_FULL = (
-    "This report is produced by equilis-india for informational and research purposes only. "
-    "It does not constitute investment advice, a recommendation to buy, sell, or hold any "
-    "security, or any form of financial guidance. All figures are sourced from publicly "
-    "available data and are subject to the validation notes stated in this report. "
-    "Users are solely responsible for their own investment decisions and due diligence. "
-    "equilis-india is not a SEBI-registered research analyst. "
-    "Past performance does not guarantee future results."
-)
+DISCLAIMER_FULL = render_disclaimer(ticker="TICKER")
 
 
 # ---------------------------------------------------------------------------
@@ -343,7 +337,11 @@ class PDFReportExporter:
         return {
             "report_date":       datetime.now(),
             "report_version":    REPORT_VERSION,
-            "disclaimer":        DISCLAIMER_FULL,
+            "disclaimer":        render_disclaimer(
+                ticker=ticker,
+                data_date=getattr(snapshot, "snapshot_date", None),
+                prepared_at=datetime.now(),
+            ),
             "company":           company,
             "price":             getattr(snapshot, "price",            None),
             "market":            getattr(snapshot, "market",           None),

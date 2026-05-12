@@ -116,7 +116,14 @@ class DataNormalizer:
 
         if bundle.price:
             snapshot.price = self._normalise_price(bundle.price)
-            snapshot.nse_raw.update(bundle.price.data)
+            source_name = bundle.price.source_name.lower()
+            if "tickertape" in source_name:
+                snapshot.tickertape_raw.update(bundle.price.data)
+            elif "bse" in source_name:
+                snapshot.bse_raw.update(bundle.price.data)
+            else:
+                snapshot.nse_raw.update(bundle.price.data)
+            self._merge_market_from_price(snapshot, bundle.price.data)
             snapshot.sources.append(SourceMeta(
                 source_name=bundle.price.source_name,
                 source_url=bundle.price.source_url,
@@ -170,6 +177,10 @@ class DataNormalizer:
         """Extract income, balance sheet, cash flow from screener/tickertape data."""
         tables = result.data.get("tables", {})
         ttm = result.data.get("ttm", {})
+
+        if not tables:
+            self._normalise_direct_financials(snapshot, result.data)
+            return
 
         income = IncomeData()
         bs = BalanceSheetData()
@@ -247,13 +258,88 @@ class DataNormalizer:
         if snapshot.market is None:
             snapshot.market = market
 
+    def _normalise_direct_financials(self, snapshot: CompanySnapshot, data: dict) -> None:
+        """Normalise plugin payloads that already use standard-ish field names."""
+        income_src = data.get("income") or data
+        balance_src = data.get("balance") or data.get("balance_sheet") or data
+        cash_src = data.get("cashflow") or data.get("cash_flow") or data
+        market_src = data.get("market") or data
+
+        income = IncomeData(
+            revenue_ttm=_to_float(income_src.get("revenue_ttm") or income_src.get("revenue") or income_src.get("netSales")),
+            ebitda_ttm=_to_float(income_src.get("ebitda_ttm") or income_src.get("ebitda")),
+            pat_ttm=_to_float(income_src.get("pat_ttm") or income_src.get("pat") or income_src.get("netProfit")),
+            eps_ttm=_to_float(income_src.get("eps_ttm") or income_src.get("eps")),
+            dividend_per_share=_to_float(income_src.get("dividend_per_share") or income_src.get("dps")),
+            revenue_5y=[v for v in (_to_float(x) for x in income_src.get("revenue_5y", [])) if v is not None],
+            pat_5y=[v for v in (_to_float(x) for x in income_src.get("pat_5y", [])) if v is not None],
+            ebitda_5y=[v for v in (_to_float(x) for x in income_src.get("ebitda_5y", [])) if v is not None],
+        )
+        bs = BalanceSheetData(
+            total_assets=_to_float(balance_src.get("total_assets") or balance_src.get("totalAssets")),
+            current_assets=_to_float(balance_src.get("current_assets") or balance_src.get("currentAssets")),
+            current_liabilities=_to_float(balance_src.get("current_liabilities") or balance_src.get("currentLiabilities")),
+            total_debt=_to_float(balance_src.get("total_debt") or balance_src.get("totalDebt") or balance_src.get("borrowings")),
+            equity=_to_float(balance_src.get("equity") or balance_src.get("netWorth")),
+            cash=_to_float(balance_src.get("cash") or balance_src.get("cashEquivalents")),
+            inventory=_to_float(balance_src.get("inventory") or balance_src.get("inventories")),
+            receivables=_to_float(balance_src.get("receivables") or balance_src.get("tradeReceivables")),
+            payables=_to_float(balance_src.get("payables") or balance_src.get("tradePayables")),
+            book_value_per_share=_to_float(balance_src.get("book_value_per_share") or balance_src.get("bookValuePerShare")),
+        )
+        cf = CashFlowData(
+            cfo_ttm=_to_float(cash_src.get("cfo_ttm") or cash_src.get("cfo") or cash_src.get("operatingCashFlow")),
+            capex_ttm=_to_float(cash_src.get("capex_ttm") or cash_src.get("capex")),
+            ocf_5y=[v for v in (_to_float(x) for x in cash_src.get("ocf_5y", [])) if v is not None],
+        )
+        if cf.cfo_ttm is not None and cf.capex_ttm is not None:
+            cf.fcf_ttm = cf.cfo_ttm - abs(cf.capex_ttm)
+
+        market = snapshot.market or MarketData()
+        market.market_cap = market.market_cap or _to_float(market_src.get("market_cap") or market_src.get("marketCap"))
+        market.enterprise_value = market.enterprise_value or _to_float(market_src.get("enterprise_value") or market_src.get("enterpriseValue"))
+        market.shares_outstanding = market.shares_outstanding or _to_float(
+            market_src.get("shares_outstanding") or market_src.get("sharesOutstanding")
+        )
+
+        snapshot.income = income
+        snapshot.balance_sheet = bs
+        snapshot.cash_flow = cf
+        snapshot.market = market
+
+    def _merge_market_from_price(self, snapshot: CompanySnapshot, data: dict) -> None:
+        market_cap = _to_float(data.get("market_cap_cr") or data.get("market_cap") or data.get("marketCap"))
+        shares = _to_float(data.get("shares_outstanding") or data.get("sharesOutstanding"))
+        if market_cap is None and shares is None:
+            return
+        if snapshot.market is None:
+            snapshot.market = MarketData()
+        snapshot.market.market_cap = snapshot.market.market_cap or market_cap
+        snapshot.market.shares_outstanding = snapshot.market.shares_outstanding or shares
+
     def _normalise_shareholding(self, result) -> ShareholdingData:
         d = result.data
         rows = {}
         if isinstance(d, dict) and "rows" in d:
             rows = d["rows"]
+        if isinstance(d, dict) and not rows:
+            return ShareholdingData(
+                promoter_holding=_to_float(d.get("promoter_holding")),
+                promoter_pledging=_to_float(d.get("promoter_pledging") or d.get("promoter_pledge")),
+                fii_holding=_to_float(d.get("fii_holding")),
+                dii_holding=_to_float(d.get("dii_holding")),
+                public_holding=_to_float(d.get("public_holding")),
+                fetched_at=result.fetched_at,
+                source=result.source_name,
+                promoter_holding_history=[
+                    v for v in (_to_float(x) for x in d.get("promoter_holding_history", []))
+                    if v is not None
+                ],
+            )
         return ShareholdingData(
             promoter_holding=_to_float(self._last_val(rows, "Promoters")),
+            promoter_pledging=_to_float(self._last_val(rows, "Pledged") or
+                                        self._last_val(rows, "Promoter Pledge")),
             fii_holding=_to_float(self._last_val(rows, "FIIs") or
                                    self._last_val(rows, "Foreign Institutions")),
             dii_holding=_to_float(self._last_val(rows, "DIIs") or

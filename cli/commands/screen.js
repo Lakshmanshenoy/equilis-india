@@ -19,6 +19,7 @@ export async function screenCommand(options) {
   if (options.minRoe != null) args.push("--min-roe", String(options.minRoe));
   if (options.maxPe != null) args.push("--max-pe", String(options.maxPe));
   if (options.minMcap != null) args.push("--min-mcap", String(options.minMcap));
+  if (options.noCache) args.push("--no-cache");
 
   try {
     const result = await withSpinner("Screening stocks", () => runPython(args));
