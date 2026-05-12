@@ -8,12 +8,12 @@ description: |
   Trigger phrases: "research <ticker>", "analyse <company>", "fundamentals of <stock>",
   "forensic check on <company>", "peer comparison for <sector>", "concall summary for <ticker>".
 argument-hint: "Type of analysis: financials | concall | annual-report | forensics | valuation | technical | sector | moat | management | ipo | thesis | peers | scenario | macro"
-version: "2.1"
+version: "2.2"
 pipeline: "core/pipeline.py"
 cli: "cli/index.js"
 ---
 
-# Equilis India — Equity Research Skill (v2.1)
+# Equilis India — Equity Research Skill (v2.2)
 
 ## Overview
 This skill turns the agent into a structured Indian equity researcher backed by the
@@ -97,6 +97,7 @@ Run `node cli/index.js analyze <TICKER>` OR invoke `AnalysisPipeline.run()`.
 - Optional local debugging override: `EQUILIS_DISABLE_SSL_VERIFY=1`.
 - Screener parser uses BeautifulSoup first, with optional Scrapling backfill for DOM drift.
 - BSE scrip-code lookup uses BSE API first, then Screener-token fallback if needed.
+- Report rendering includes `Source Health Diagnostics` and `Field Coverage` tables so missing fields are explicit.
 
 If any source slice is unavailable, continue with partial output and explicitly surface
 source-health diagnostics in the report.
@@ -113,6 +114,7 @@ source-health diagnostics in the report.
 ### Step 3 — Validate data quality
 `core/validator.py` runs automatically in the pipeline. Key checks:
 - Completeness: all required sections present
+- Critical metrics hard-fail: `price.cmp`, `income.revenue_ttm`, `income.pat_ttm`, `income.ebitda_ttm`
 - Freshness: CMP not older than 30 min; shareholding not older than 95 days
 - Internal consistency: FCF = CFO − CapEx; EPS = PAT / shares
 - Cross-source: flag >5% divergence between Screener and Tickertape on key fields
@@ -215,6 +217,7 @@ See `docs/data-sources.md` for full source list with rate limits and authenticat
 - Report each unavailable fetch category with reason where possible.
 - Preserve completed sections and continue scenario analysis with available validated inputs.
 - Prefer explicit `N/A` over inferred values unless derivation logic is coded and auditable.
+- Always include a `Field Coverage` section marking critical metrics as `Present` or `Unavailable`.
 
 ---
 

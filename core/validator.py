@@ -109,6 +109,36 @@ class DataValidator:
                 message="5-year PAT series is empty — growth analysis will be limited.",
             ))
 
+        critical_metrics = [
+            ("price.cmp", getattr(s.price, "cmp", None)),
+            ("income.revenue_ttm", getattr(s.income, "revenue_ttm", None)),
+            ("income.pat_ttm", getattr(s.income, "pat_ttm", None)),
+            ("income.ebitda_ttm", getattr(s.income, "ebitda_ttm", None)),
+        ]
+        missing_critical = [field for field, value in critical_metrics if value is None]
+        for field in missing_critical:
+            issues.append(ValidationIssue(
+                field=field,
+                severity=Severity.ERROR,
+                message=(
+                    "Critical metric missing — report would be materially incomplete. "
+                    "Retry/fallback source should be used before rendering."
+                ),
+            ))
+
+        advisory_metrics = [
+            ("balance_sheet.total_debt", getattr(s.balance_sheet, "total_debt", None)),
+            ("cash_flow.cfo_ttm", getattr(s.cash_flow, "cfo_ttm", None)),
+            ("shareholding.promoter_holding", getattr(s.shareholding, "promoter_holding", None)),
+        ]
+        for field, value in advisory_metrics:
+            if value is None:
+                issues.append(ValidationIssue(
+                    field=field,
+                    severity=Severity.WARNING,
+                    message="Advisory metric missing — some ratio and quality sections may show N/A.",
+                ))
+
         return issues
 
     # ─────────────────────────── freshness ───────────────────────────────────

@@ -36,7 +36,11 @@ def _to_float(value: Any) -> Optional[float]:
     if value is None:
         return None
     try:
-        return float(str(value).replace(",", "").strip())
+        cleaned = str(value).strip()
+        cleaned = cleaned.replace(",", "").replace("₹", "").replace("%", "")
+        for token in ("cr", "crore", "lakh", "lakhs", "mn", "million", "bn", "billion"):
+            cleaned = cleaned.replace(token, "").replace(token.upper(), "")
+        return float(cleaned.strip())
     except (ValueError, TypeError):
         return None
 
@@ -269,27 +273,33 @@ class DataNormalizer:
 
     def _normalise_direct_financials(self, snapshot: CompanySnapshot, data: dict) -> None:
         """Normalise plugin payloads that already use standard-ish field names."""
-        income_src = data.get("income") or data
-        balance_src = data.get("balance") or data.get("balance_sheet") or data
-        cash_src = data.get("cashflow") or data.get("cash_flow") or data
-        market_src = data.get("market") or data
+        income_src = data.get("income") or data.get("profit_and_loss") or data.get("pnl") or data
+        balance_src = data.get("balance") or data.get("balance_sheet") or data.get("balanceSheet") or data
+        cash_src = data.get("cashflow") or data.get("cash_flow") or data.get("cashFlow") or data
+        market_src = data.get("market") or data.get("valuation") or data
 
         income = IncomeData(
-            revenue_ttm=_to_float(income_src.get("revenue_ttm") or income_src.get("revenue") or income_src.get("netSales")),
-            ebitda_ttm=_to_float(income_src.get("ebitda_ttm") or income_src.get("ebitda")),
-            pat_ttm=_to_float(income_src.get("pat_ttm") or income_src.get("pat") or income_src.get("netProfit")),
-            eps_ttm=_to_float(income_src.get("eps_ttm") or income_src.get("eps")),
-            dividend_per_share=_to_float(income_src.get("dividend_per_share") or income_src.get("dps")),
+            revenue_ttm=_to_float(
+                income_src.get("revenue_ttm")
+                or income_src.get("revenue")
+                or income_src.get("netSales")
+                or income_src.get("sales")
+                or income_src.get("total_income")
+            ),
+            ebitda_ttm=_to_float(income_src.get("ebitda_ttm") or income_src.get("ebitda") or income_src.get("operating_profit")),
+            pat_ttm=_to_float(income_src.get("pat_ttm") or income_src.get("pat") or income_src.get("netProfit") or income_src.get("profit_after_tax")),
+            eps_ttm=_to_float(income_src.get("eps_ttm") or income_src.get("eps") or income_src.get("eps_diluted")),
+            dividend_per_share=_to_float(income_src.get("dividend_per_share") or income_src.get("dps") or income_src.get("dividend")),
             revenue_5y=[v for v in (_to_float(x) for x in income_src.get("revenue_5y", [])) if v is not None],
             pat_5y=[v for v in (_to_float(x) for x in income_src.get("pat_5y", [])) if v is not None],
             ebitda_5y=[v for v in (_to_float(x) for x in income_src.get("ebitda_5y", [])) if v is not None],
         )
         bs = BalanceSheetData(
-            total_assets=_to_float(balance_src.get("total_assets") or balance_src.get("totalAssets")),
-            current_assets=_to_float(balance_src.get("current_assets") or balance_src.get("currentAssets")),
-            current_liabilities=_to_float(balance_src.get("current_liabilities") or balance_src.get("currentLiabilities")),
-            total_debt=_to_float(balance_src.get("total_debt") or balance_src.get("totalDebt") or balance_src.get("borrowings")),
-            equity=_to_float(balance_src.get("equity") or balance_src.get("netWorth")),
+            total_assets=_to_float(balance_src.get("total_assets") or balance_src.get("totalAssets") or balance_src.get("assets_total")),
+            current_assets=_to_float(balance_src.get("current_assets") or balance_src.get("currentAssets") or balance_src.get("assets_current")),
+            current_liabilities=_to_float(balance_src.get("current_liabilities") or balance_src.get("currentLiabilities") or balance_src.get("liabilities_current")),
+            total_debt=_to_float(balance_src.get("total_debt") or balance_src.get("totalDebt") or balance_src.get("borrowings") or balance_src.get("debt")),
+            equity=_to_float(balance_src.get("equity") or balance_src.get("netWorth") or balance_src.get("shareholders_equity")),
             cash=_to_float(balance_src.get("cash") or balance_src.get("cashEquivalents")),
             inventory=_to_float(balance_src.get("inventory") or balance_src.get("inventories")),
             receivables=_to_float(balance_src.get("receivables") or balance_src.get("tradeReceivables")),
@@ -297,18 +307,22 @@ class DataNormalizer:
             book_value_per_share=_to_float(balance_src.get("book_value_per_share") or balance_src.get("bookValuePerShare")),
         )
         cf = CashFlowData(
-            cfo_ttm=_to_float(cash_src.get("cfo_ttm") or cash_src.get("cfo") or cash_src.get("operatingCashFlow")),
-            capex_ttm=_to_float(cash_src.get("capex_ttm") or cash_src.get("capex")),
+            cfo_ttm=_to_float(cash_src.get("cfo_ttm") or cash_src.get("cfo") or cash_src.get("operatingCashFlow") or cash_src.get("operating_cash_flow")),
+            capex_ttm=_to_float(cash_src.get("capex_ttm") or cash_src.get("capex") or cash_src.get("capital_expenditure")),
             ocf_5y=[v for v in (_to_float(x) for x in cash_src.get("ocf_5y", [])) if v is not None],
         )
         if cf.cfo_ttm is not None and cf.capex_ttm is not None:
             cf.fcf_ttm = cf.cfo_ttm - abs(cf.capex_ttm)
 
         market = snapshot.market or MarketData()
-        market.market_cap = market.market_cap or _to_float(market_src.get("market_cap") or market_src.get("marketCap"))
-        market.enterprise_value = market.enterprise_value or _to_float(market_src.get("enterprise_value") or market_src.get("enterpriseValue"))
+        market.market_cap = market.market_cap or _to_float(
+            market_src.get("market_cap") or market_src.get("marketCap") or market_src.get("mcap")
+        )
+        market.enterprise_value = market.enterprise_value or _to_float(
+            market_src.get("enterprise_value") or market_src.get("enterpriseValue") or market_src.get("ev")
+        )
         market.shares_outstanding = market.shares_outstanding or _to_float(
-            market_src.get("shares_outstanding") or market_src.get("sharesOutstanding")
+            market_src.get("shares_outstanding") or market_src.get("sharesOutstanding") or market_src.get("shares")
         )
 
         snapshot.income = income

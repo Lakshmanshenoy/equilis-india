@@ -95,6 +95,7 @@ class ReportRenderer:
             sections.append(self._scenarios_section(scenarios))
         if peer_result:
             sections.append(self._peer_section(peer_result))
+        sections.append(self._field_coverage_section(snapshot))
         sections.append(self._sources_section(snapshot))
         sections.append(self._footer(snapshot))
         return "\n\n".join(filter(None, sections))
@@ -378,6 +379,28 @@ class ReportRenderer:
                     lines.append(f"| {pe_key} | ₹{val:,.1f} |")
             lines.append("")
         lines.append(f"> {sc.compliance_note}")
+        return "\n".join(lines)
+
+    def _field_coverage_section(self, s: CompanySnapshot) -> str:
+        fields = [
+            ("CMP", getattr(s.price, "cmp", None), getattr(s.price, "source", "N/A")),
+            ("Revenue TTM", getattr(s.income, "revenue_ttm", None), "financials"),
+            ("PAT TTM", getattr(s.income, "pat_ttm", None), "financials"),
+            ("EBITDA TTM", getattr(s.income, "ebitda_ttm", None), "financials"),
+            ("Total Debt", getattr(s.balance_sheet, "total_debt", None), "financials"),
+            ("CFO TTM", getattr(s.cash_flow, "cfo_ttm", None), "financials"),
+            ("Promoter Holding", getattr(s.shareholding, "promoter_holding", None), getattr(s.shareholding, "source", "N/A")),
+        ]
+
+        lines = [
+            "## Field Coverage",
+            "",
+            "| Field | Status | Source |",
+            "| --- | --- | --- |",
+        ]
+        for label, value, source in fields:
+            status = "Present" if value is not None else "Unavailable"
+            lines.append(f"| {label} | {status} | {source} |")
         return "\n".join(lines)
 
     def _sources_section(self, s: CompanySnapshot) -> str:

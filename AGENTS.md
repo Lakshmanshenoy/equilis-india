@@ -8,6 +8,7 @@ Before responding to any equity or market research query:
 4. Run the validation gate (`core/validate.py`) on every number before it appears in output.
 5. Append the disclaimer from `skills/equity-research/references/compliance-disclaimer.md` to every output.
 6. If any data source fails, include source-health diagnostics (what failed and what fallback was used).
+7. Ensure reports include `Field Coverage` status for critical metrics (Present/Unavailable).
 
 ## Never do this
 - Never output a price target as a recommendation.
@@ -35,3 +36,5 @@ Before responding to any equity or market research query:
 - Local override for broken cert stores: set `EQUILIS_DISABLE_SSL_VERIFY=1` only for development/debugging.
 - Screener parsing has a BeautifulSoup primary parser with optional Scrapling backfill.
 - BSE scrip resolution has API lookup first, then Screener-token fallback parsing.
+- Validator hard-fails when critical metrics are missing (`price.cmp`, `income.revenue_ttm`, `income.pat_ttm`, `income.ebitda_ttm`).
+- Markdown reports include `Source Health Diagnostics` and `Field Coverage` sections for transparency.
