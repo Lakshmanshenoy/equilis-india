@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import sys
+logger = logging.getLogger(__name__)
 
 # Ensure repo root is on the path when called from CLI
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
