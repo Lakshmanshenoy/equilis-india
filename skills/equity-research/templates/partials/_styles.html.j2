@@ -54,6 +54,7 @@ body {
   width: 210mm;
   overflow: hidden;
   display: block;
+  position: relative;
 }
 .page:last-child { page-break-after: auto; }
 
@@ -249,6 +250,10 @@ body {
 }
 
 .page-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: var(--navy-mid);
   border-top: 1px solid var(--border);
   padding: 3mm 18mm;
@@ -264,7 +269,7 @@ body {
    SECTION LAYOUT
    ============================================================ */
 .section-body {
-  padding: 8mm 18mm;
+  padding: 8mm 18mm 20mm;
 }
 
 .section-title {
