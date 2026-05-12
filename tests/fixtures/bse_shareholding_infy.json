@@ -1,0 +1,68 @@
+{
+  "Table": [
+    {
+      "QUARTER": "Q3FY24",
+      "PROMOTER_HOLDING": 14.84,
+      "PROMOTER_PLEDGE": 0.0,
+      "FII_HOLDING": 33.8,
+      "DII_HOLDING": 35.6,
+      "PUBLIC_HOLDING": 15.76
+    },
+    {
+      "QUARTER": "Q2FY24",
+      "PROMOTER_HOLDING": 14.87,
+      "PROMOTER_PLEDGE": 0.0,
+      "FII_HOLDING": 32.9,
+      "DII_HOLDING": 36.1,
+      "PUBLIC_HOLDING": 16.13
+    },
+    {
+      "QUARTER": "Q1FY24",
+      "PROMOTER_HOLDING": 14.88,
+      "PROMOTER_PLEDGE": 0.0,
+      "FII_HOLDING": 33.2,
+      "DII_HOLDING": 36.8,
+      "PUBLIC_HOLDING": 15.12
+    },
+    {
+      "QUARTER": "Q4FY23",
+      "PROMOTER_HOLDING": 14.91,
+      "PROMOTER_PLEDGE": 0.0,
+      "FII_HOLDING": 34.1,
+      "DII_HOLDING": 35.2,
+      "PUBLIC_HOLDING": 15.79
+    },
+    {
+      "QUARTER": "Q3FY23",
+      "PROMOTER_HOLDING": 14.95,
+      "PROMOTER_PLEDGE": 0.0,
+      "FII_HOLDING": 35.0,
+      "DII_HOLDING": 33.9,
+      "PUBLIC_HOLDING": 16.15
+    },
+    {
+      "QUARTER": "Q2FY23",
+      "PROMOTER_HOLDING": 15.01,
+      "PROMOTER_PLEDGE": 0.0,
+      "FII_HOLDING": 35.5,
+      "DII_HOLDING": 33.4,
+      "PUBLIC_HOLDING": 16.09
+    },
+    {
+      "QUARTER": "Q1FY23",
+      "PROMOTER_HOLDING": 15.11,
+      "PROMOTER_PLEDGE": 0.0,
+      "FII_HOLDING": 34.8,
+      "DII_HOLDING": 33.8,
+      "PUBLIC_HOLDING": 16.31
+    },
+    {
+      "QUARTER": "Q4FY22",
+      "PROMOTER_HOLDING": 15.22,
+      "PROMOTER_PLEDGE": 0.0,
+      "FII_HOLDING": 36.2,
+      "DII_HOLDING": 32.1,
+      "PUBLIC_HOLDING": 16.48
+    }
+  ]
+}

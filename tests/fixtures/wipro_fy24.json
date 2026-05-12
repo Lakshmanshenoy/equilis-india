@@ -1,0 +1,76 @@
+{
+  "ticker": "WIPRO",
+  "exchange": "NSE",
+  "company_name": "Wipro Limited",
+  "sector": "Information Technology",
+  "industry": "IT Services",
+  "price": {
+    "cmp": 462.5,
+    "week52_high": 533.25,
+    "week52_low": 356.45,
+    "source": "nse_api",
+    "fetched_at": "2024-03-31T15:30:00"
+  },
+  "market": {
+    "market_cap": 241500,
+    "shares_outstanding": 522.3,
+    "enterprise_value": 233000
+  },
+  "income": {
+    "revenue_ttm": 89750,
+    "ebitda_ttm": 17200,
+    "ebit": 14500,
+    "pat_ttm": 11400,
+    "gross_profit": 34200,
+    "interest_expense": 480,
+    "depreciation": 2700,
+    "eps_ttm": 21.8,
+    "eps_growth_5yr": 0.06,
+    "dividend_per_share": 6.0,
+    "revenue_5y": [61900, 70973, 79312, 90488, 89750],
+    "pat_5y": [9856, 12230, 12707, 10796, 11400],
+    "ebitda_5y": [14200, 16100, 17800, 17600, 17200]
+  },
+  "balance_sheet": {
+    "total_assets": 119800,
+    "current_assets": 58000,
+    "current_liabilities": 22500,
+    "total_debt": 14500,
+    "equity": 78000,
+    "retained_earnings": 48000,
+    "cash": 14000,
+    "inventory": 0,
+    "receivables": 20000,
+    "payables": 8200,
+    "ppe": 21000,
+    "book_value_per_share": 149.3
+  },
+  "cash_flow": {
+    "cfo_ttm": 15200,
+    "capex_ttm": 3100,
+    "fcf_ttm": 12100,
+    "ocf_5y": [13500, 16100, 17600, 14800, 15200]
+  },
+  "shareholding": {
+    "promoter_holding": 72.9,
+    "promoter_pledging": 0.0,
+    "fii_holding": 7.2,
+    "dii_holding": 5.8,
+    "public_holding": 14.1,
+    "promoter_holding_history": [72.9, 72.9, 73.0, 73.2]
+  },
+  "screener_raw": {
+    "pe_ratio": 21.2,
+    "pb_ratio": 3.1,
+    "ev_ebitda": 13.5,
+    "roe": 0.146,
+    "roce": 0.170,
+    "pat_margin": 0.127,
+    "debt_equity": 0.19,
+    "current_ratio": 2.58
+  },
+  "history": [
+    {"fiscal_year": "FY24", "revenue": 89750, "pat": 11400, "ebitda": 17200, "cfo": 15200, "capex": 3100, "total_assets": 119800, "equity": 78000, "receivables": 20000, "inventory": 0, "other_income": 1800, "pbt": 14000, "related_party_txn": 0, "shares_outstanding": 522.3, "roce": 0.17},
+    {"fiscal_year": "FY23", "revenue": 90488, "pat": 10796, "ebitda": 17600, "cfo": 14800, "capex": 3500, "total_assets": 112000, "equity": 72000, "receivables": 18800, "inventory": 0, "other_income": 1600, "pbt": 13200, "related_party_txn": 0, "shares_outstanding": 539.0, "roce": 0.16}
+  ]
+}

@@ -1,0 +1,22 @@
+# NIFTY 50 — placeholder ticker list (update with full NSE list before production use)
+# One NSE ticker per line. Lines starting with # are ignored.
+INFY
+TCS
+RELIANCE
+HDFCBANK
+WIPRO
+ICICIBANK
+HINDUNILVR
+KOTAKBANK
+SBIN
+AXISBANK
+BAJFINANCE
+BHARTIARTL
+LT
+ASIANPAINT
+MARUTI
+TITAN
+NESTLEIND
+ULTRACEMCO
+TECHM
+SUNPHARMA

@@ -450,3 +450,41 @@ MACRO_SENSITIVITY_CONFIG: Dict[str, dict] = {
     },
 }
 
+MACRO_SENSITIVITY_CONFIG.update({
+    "Cement": {
+        "repo_rate": {"sensitivity": "medium", "direction": "inverse"},
+        "infrastructure_spend": {"sensitivity": "high", "direction": "positive"},
+        "coal_price": {"sensitivity": "high", "direction": "inverse"},
+    },
+    "Auto": {
+        "repo_rate": {"sensitivity": "high", "direction": "inverse"},
+        "fuel_price": {"sensitivity": "medium", "direction": "inverse"},
+        "rural_income": {"sensitivity": "high", "direction": "positive"},
+    },
+    "Steel": {
+        "china_exports": {"sensitivity": "high", "direction": "inverse"},
+        "infrastructure_spend": {"sensitivity": "high", "direction": "positive"},
+        "iron_ore_price": {"sensitivity": "medium", "direction": "inverse"},
+    },
+    "Consumer Durables": {
+        "repo_rate": {"sensitivity": "medium", "direction": "inverse"},
+        "rural_income": {"sensitivity": "high", "direction": "positive"},
+        "monsoon": {"sensitivity": "medium", "direction": "positive"},
+    },
+    "Telecom": {
+        "arpu_trend": {"sensitivity": "high", "direction": "positive"},
+        "spectrum_cost": {"sensitivity": "medium", "direction": "inverse"},
+        "subscriber_growth": {"sensitivity": "high", "direction": "positive"},
+    },
+    "Power": {
+        "fuel_price": {"sensitivity": "high", "direction": "inverse"},
+        "capacity_utilisation": {"sensitivity": "high", "direction": "positive"},
+        "policy_tariff": {"sensitivity": "medium", "direction": "positive"},
+    },
+    "Real Estate": {
+        "repo_rate": {"sensitivity": "high", "direction": "inverse"},
+        "housing_demand": {"sensitivity": "high", "direction": "positive"},
+        "cement_steel_cost": {"sensitivity": "medium", "direction": "inverse"},
+    },
+})
+

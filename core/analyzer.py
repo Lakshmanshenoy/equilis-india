@@ -52,6 +52,11 @@ class EquityAnalyzer:
     red flags, and Altman Z-Score from a normalised CompanySnapshot.
     """
 
+    # Sectors where the original Altman model is not applicable
+    FINANCIAL_SECTORS: frozenset = frozenset({
+        "Banking", "NBFC", "Insurance", "Financial Services"
+    })
+
     def compute_all(self, snapshot: CompanySnapshot) -> RatioSet:
         """Convenience: compute and return all ratios in one call."""
         return RatioSet(
@@ -308,6 +313,103 @@ class EquityAnalyzer:
                 })
 
         return flags
+
+    def compute_altman_z(self, snapshot: CompanySnapshot) -> dict:
+        """
+        Structured Altman Z-Score with X1–X5 component keys.
+
+        Returns either a full result dict with keys:
+            z_score, zone, zone_description, X1, X2, X3, X4, X5,
+            components (dict), disclaimer
+        or a skip dict with keys:
+            skipped (True), reason
+
+        Automatically skipped for financial-sector companies (Banking, NBFC,
+        Insurance, Financial Services) and when key data is missing.
+        """
+        sector = getattr(snapshot, "sector", None) or ""
+        if sector in self.FINANCIAL_SECTORS:
+            return {
+                "skipped": True,
+                "reason": (
+                    f"Altman Z-Score is not applicable to {sector} companies. "
+                    "The original model was calibrated on non-financial firms."
+                ),
+            }
+
+        bs = snapshot.balance_sheet
+        inc = snapshot.income
+        mkt = snapshot.market
+
+        if not bs or not inc or not mkt:
+            return {"skipped": True, "reason": "Insufficient data (balance_sheet/income/market missing)"}
+
+        # Override hook for tests: `snapshot.working_capital = None` forces skip
+        _wc_override = getattr(snapshot, "working_capital", "UNSET")
+        if _wc_override != "UNSET":
+            if _wc_override is None:
+                return {"skipped": True, "reason": "working_capital explicitly set to None"}
+            working_capital = float(_wc_override)
+        else:
+            if bs.current_assets is None or bs.current_liabilities is None:
+                return {"skipped": True, "reason": "current_assets or current_liabilities missing"}
+            working_capital = bs.current_assets - bs.current_liabilities
+
+        if not bs.total_assets:
+            return {"skipped": True, "reason": "total_assets missing or zero"}
+
+        # X1 = Working Capital / Total Assets
+        x1 = _safe_div(working_capital, bs.total_assets)
+        # X2 = Retained Earnings / Total Assets
+        x2 = _safe_div(bs.retained_earnings, bs.total_assets)
+        # X3 = EBIT / Total Assets
+        ebit = inc.ebit or (
+            (inc.ebitda_ttm - (inc.depreciation or 0)) if inc.ebitda_ttm else None
+        )
+        x3 = _safe_div(ebit, bs.total_assets)
+        # X4 = Market Cap / Total Liabilities
+        total_liabilities = (
+            bs.total_assets - bs.equity if (bs.total_assets and bs.equity) else None
+        )
+        x4 = _safe_div(mkt.market_cap, total_liabilities)
+        # X5 = Revenue / Total Assets
+        x5 = _safe_div(inc.revenue_ttm, bs.total_assets)
+
+        if None in (x1, x2, x3, x4, x5):
+            missing = [k for k, v in {"X1": x1, "X2": x2, "X3": x3, "X4": x4, "X5": x5}.items() if v is None]
+            return {"skipped": True, "reason": f"Cannot compute component(s): {missing}"}
+
+        z = round(1.2 * x1 + 1.4 * x2 + 3.3 * x3 + 0.6 * x4 + 1.0 * x5, 4)
+
+        if z > 2.99:
+            zone, zone_description = "SAFE", "Low probability of distress (academic reference)"
+        elif z >= 1.81:
+            zone, zone_description = "GREY", "Indeterminate zone — monitor closely"
+        else:
+            zone, zone_description = "DISTRESS", "High probability of distress (academic reference)"
+
+        return {
+            "z_score": z,
+            "zone": zone,
+            "zone_description": zone_description,
+            "X1": round(x1, 4),
+            "X2": round(x2, 4),
+            "X3": round(x3, 4),
+            "X4": round(x4, 4),
+            "X5": round(x5, 4),
+            "components": {
+                "working_capital_ratio": round(x1, 4),
+                "retained_earnings_ratio": round(x2, 4),
+                "ebit_ratio": round(x3, 4),
+                "market_cap_to_liabilities": round(x4, 4),
+                "asset_turnover": round(x5, 4),
+            },
+            "disclaimer": (
+                "Altman Z-Score is an academic model (Altman, 1968) calibrated on "
+                "US manufacturing firms. It is not validated for Indian or service-sector "
+                "companies and must not be used as a credit rating or insolvency prediction."
+            ),
+        }
 
     def altman_z_score(self, snapshot: CompanySnapshot) -> dict:
         """

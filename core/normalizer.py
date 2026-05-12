@@ -64,6 +64,32 @@ def _make_fy_label(index: int, latest_fy_end_year: int) -> str:
     return f"FY{str(year)[-2:]}"
 
 
+SECTOR_NORMALISATION_MAP: dict[str, str] = {
+    "Information Technology": "IT",
+    "IT - Software": "IT",
+    "Banks": "Banking",
+    "Finance": "Banking",
+    "NBFC": "Banking",
+    "Pharmaceuticals": "Pharma",
+    "FMCG": "FMCG",
+    "Consumer Goods": "FMCG",
+    "Cement & Cement Products": "Cement",
+    "Automobile": "Auto",
+    "Auto Ancillaries": "Auto",
+    "Steel": "Steel",
+    "Metals - Ferrous": "Steel",
+    "Power Generation & Distribution": "Power",
+    "Telecom - Equipment & Accessories": "Telecom",
+    "Consumer Durables": "Consumer Durables",
+    "Real Estate": "Real Estate",
+}
+
+
+def normalise_sector(raw_sector: str) -> str:
+    """Map raw sector string to canonical sector name used in MACRO_SENSITIVITY_CONFIG."""
+    return SECTOR_NORMALISATION_MAP.get(raw_sector, raw_sector)
+
+
 class DataNormalizer:
     """
     Transforms raw plugin outputs (FetchBundle) into a structured CompanySnapshot.

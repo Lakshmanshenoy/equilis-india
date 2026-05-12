@@ -15,6 +15,9 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.fetcher import DataFetcher, FetchBundle
+from core.cache import CacheManager
+
+_no_cache = CacheManager(disabled=True)
 from plugins._base import FetchResult
 
 
@@ -64,7 +67,7 @@ class MockFailingPlugin:
 
 @pytest.fixture
 def fetcher_with_success():
-    return DataFetcher(plugins={"nse_api": MockSuccessPlugin()})
+    return DataFetcher(plugins={"nse_api": MockSuccessPlugin()}, cache=_no_cache)
 
 
 @pytest.fixture
@@ -73,7 +76,8 @@ def fetcher_fail_then_success():
         plugins={
             "nse_api": MockFailingPlugin(),
             "tickertape": MockSuccessPlugin(),
-        }
+        },
+        cache=_no_cache,
     )
 
 
@@ -99,7 +103,8 @@ def test_fetch_all_returns_bundle(fetcher_with_success):
 def test_fetch_all_partial_failure():
     """Should return bundle with available data even if some sources fail."""
     fetcher = DataFetcher(
-        plugins={"nse_api": MockFailingPlugin(), "screener_in": MockSuccessPlugin()}
+        plugins={"nse_api": MockFailingPlugin(), "screener_in": MockSuccessPlugin()},
+        cache=_no_cache,
     )
     bundle = asyncio.run(fetcher.fetch_all("INFY"))
     # Price uses nse_api (fails) with no fallback → None; financials uses screener_in (ok)

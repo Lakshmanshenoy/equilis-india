@@ -16,6 +16,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.pipeline import AnalysisPipeline, PipelineConfig, PipelineResult
+from core.cache import CacheManager
 from plugins._base import FetchResult
 
 FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -90,7 +91,15 @@ class FixturePlugin:
                 },
             },
         }
-        return _make_result("fixture_screener", {"tables": tables, "ttm": {}})
+        return _make_result("fixture_screener", {
+            "tables": tables,
+            "ttm": {
+                "Sales": str(inc.get("revenue_ttm", "")),
+                "Net Profit": str(inc.get("pat_ttm", "")),
+                "Operating Profit": str(inc.get("ebitda_ttm", "")),
+                "EPS in Rs": str(inc.get("eps_ttm", "")),
+            },
+        })
 
     async def fetch_shareholding(self, ticker: str) -> FetchResult:
         sh = self._data.get("shareholding", {})
@@ -110,13 +119,13 @@ class FixturePlugin:
 @pytest.fixture
 def infy_pipeline():
     plugin = FixturePlugin("infy_fy24.json")
-    return AnalysisPipeline(plugins={"nse_api": plugin, "screener_in": plugin})
+    return AnalysisPipeline(plugins={"nse_api": plugin, "screener_in": plugin}, cache=CacheManager(disabled=True))
 
 
 @pytest.fixture
 def reliance_pipeline():
     plugin = FixturePlugin("reliance_fy24.json")
-    return AnalysisPipeline(plugins={"nse_api": plugin, "screener_in": plugin})
+    return AnalysisPipeline(plugins={"nse_api": plugin, "screener_in": plugin}, cache=CacheManager(disabled=True))
 
 
 # ── Pipeline success tests ────────────────────────────────────────────────────

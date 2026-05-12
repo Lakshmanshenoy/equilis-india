@@ -70,14 +70,47 @@ class TickertapePlugin(BasePlugin):
             raise
 
     async def fetch_shareholding(self, ticker: str) -> FetchResult:
-        """Fetch shareholding from Tickertape (fallback)."""
-        url = f"{TICKERTAPE_BASE}/stocks/{ticker.upper()}/shareholding"
-        try:
-            data = await self._get_json(url)
-            return self._make_result(data.get("data", {}), url, is_fallback=True)
-        except Exception as e:
-            logger.warning(f"[tickertape] Failed to fetch shareholding for {ticker}: {e}")
-            raise
+        """
+        Tickertape does not provide shareholding data.
+        Use BSE filings plugin for accurate SEBI-grade shareholding patterns.
+        """
+        raise NotImplementedError(
+            "Tickertape does not provide shareholding data. "
+            "Use BSE filings plugin (bse_filings.py) for shareholding patterns."
+        )
+
+    def _normalise_financials(self, raw: dict) -> dict:
+        """
+        Map Tickertape-specific field names to the standard CompanySnapshot schema.
+        Returns a dict with standard keys; missing fields map to None.
+        """
+        income = raw.get("income") or {}
+        balance = raw.get("balance") or {}
+        cf = raw.get("cashflow") or {}
+        return {
+            "revenue_ttm": income.get("netSales") or income.get("revenue"),
+            "ebitda_ttm": income.get("ebitda"),
+            "pat_ttm": income.get("pat") or income.get("netProfit"),
+            "eps_ttm": income.get("eps"),
+            "total_assets": balance.get("totalAssets"),
+            "total_debt": balance.get("totalDebt") or balance.get("borrowings"),
+            "equity": balance.get("equity") or balance.get("netWorth"),
+            "current_assets": balance.get("currentAssets"),
+            "current_liabilities": balance.get("currentLiabilities"),
+            "cash": balance.get("cash") or balance.get("cashEquivalents"),
+            "cfo_ttm": cf.get("cfo") or cf.get("operatingCashFlow"),
+            "capex_ttm": cf.get("capex"),
+        }
+
+    async def _get_session(self):
+        """Lazy-initialise a persistent aiohttp.ClientSession with standard headers."""
+        import aiohttp
+        if not self._session or self._session.closed:
+            self._session = aiohttp.ClientSession(headers={
+                "User-Agent": "Mozilla/5.0 (compatible; equilis-india/2.0; research-only)",
+                "Accept": "application/json",
+            })
+        return self._session
 
     def health_check(self) -> bool:
         try:

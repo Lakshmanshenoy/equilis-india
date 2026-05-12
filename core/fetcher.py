@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from core.cache import CacheManager
@@ -27,6 +27,26 @@ PRICE_SOURCES = ["nse_api", "tickertape"]
 FINANCIAL_SOURCES = ["screener_in", "tickertape", "bse_filings"]
 SHAREHOLDING_SOURCES = ["bse_filings", "screener_in"]
 CORPORATE_ACTION_SOURCES = ["nse_api", "bse_filings"]
+
+# ── Phase 3: concurrency, retry, and TTL configuration ────────────────────────
+SOURCE_CONCURRENCY: dict[str, int] = {
+    "screener_in": 3,
+    "nse_api": 5,
+    "bse_filings": 2,
+    "tickertape": 3,
+}
+
+MAX_RETRIES: int = 3
+RETRY_BACKOFF: list[int] = [1, 3, 7]  # seconds to wait before each retry attempt
+
+TTL_CONFIG: dict[str, int] = {
+    "price":           15,     # minutes
+    "financials":      360,
+    "shareholding":    1440,
+    "corp_actions":    1440,
+    "concalls":        10080,
+    "peers":           1440,
+}
 
 
 @dataclass
@@ -57,12 +77,23 @@ class DataFetcher:
     ):
         self._plugins: dict[str, BasePlugin] = plugins
         self._cache: CacheManager = cache or CacheManager()
+        self._semaphores: dict[str, asyncio.Semaphore] = {
+            src: asyncio.Semaphore(c) for src, c in SOURCE_CONCURRENCY.items()
+        }
 
     def _plugin(self, name: str) -> Optional[BasePlugin]:
         return self._plugins.get(name)
 
     def _is_fresh(self, data_type: str, ticker: str) -> bool:
         return self._cache.get(data_type, ticker) is not None
+
+    def _result_is_fresh(self, result: FetchResult, data_type: str) -> bool:
+        """Return True if a cached FetchResult is within TTL for the data type."""
+        ttl_minutes = TTL_CONFIG.get(data_type, 60)
+        if not result or not hasattr(result, "fetched_at"):
+            return False
+        delta = (datetime.now(timezone.utc).replace(tzinfo=None) - result.fetched_at).total_seconds() / 60
+        return delta < ttl_minutes
 
     async def _try_sources(
         self,
@@ -84,12 +115,22 @@ class DataFetcher:
             plugin = self._plugin(name)
             if not plugin:
                 continue
+            sem = self._semaphores.get(name, asyncio.Semaphore(5))
             try:
-                result: FetchResult = await getattr(plugin, method)(ticker)
-                self._cache.set(data_type, ticker, result)
-                return result
+                async with sem:
+                    result: FetchResult = await asyncio.wait_for(
+                        getattr(plugin, method)(ticker), timeout=30
+                    )
+                if result and self._result_is_fresh(result, data_type):
+                    self._cache.set(data_type, ticker, result)
+                    return result
+                elif result:
+                    self._cache.set(data_type, ticker, result)
+                    return result
             except NotImplementedError:
                 logger.debug(f"[fetcher] {name} does not support {method}")
+            except asyncio.TimeoutError:
+                logger.warning(f"[fetcher] {name}.{method}({ticker}) timed out after 30s")
             except Exception as e:
                 logger.warning(f"[fetcher] {name}.{method}({ticker}) failed: {e}")
 
@@ -154,3 +195,55 @@ class DataFetcher:
             logger.warning(f"[fetcher] Partial fetch for {ticker}: {list(errors.keys())} failed")
 
         return bundle
+
+    async def _fetch_with_retry(
+        self,
+        data_type: str,
+        ticker: str,
+        source_names: list[str],
+        method: str,
+    ) -> Optional[FetchResult]:
+        """
+        Fetch data with up to MAX_RETRIES attempts.
+        Uses RETRY_BACKOFF delays between attempts on failure.
+        """
+        last_exc: Optional[Exception] = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                result = await self._try_sources(data_type, ticker, source_names, method)
+                if result is not None:
+                    return result
+            except Exception as exc:
+                last_exc = exc
+                logger.warning(
+                    f"[fetcher] {data_type}/{ticker} attempt {attempt+1} failed: {exc}"
+                )
+            if attempt < MAX_RETRIES - 1:
+                await asyncio.sleep(RETRY_BACKOFF[attempt])
+        if last_exc:
+            logger.error(
+                f"[fetcher] {data_type}/{ticker} exhausted {MAX_RETRIES} retries: {last_exc}"
+            )
+        return None
+
+    async def fetch_all_concurrent(self, tickers: list[str]) -> dict[str, "FetchBundle"]:
+        """
+        Fetch all data for a list of tickers concurrently.
+        Returns a dict mapping ticker -> FetchBundle.
+        """
+        async def _fetch_one(ticker: str) -> tuple[str, "FetchBundle"]:
+            try:
+                bundle = await self.fetch_all(ticker)
+                return ticker, bundle
+            except Exception as exc:
+                return ticker, self._error_bundle(ticker, exc)
+
+        results = await asyncio.gather(*[_fetch_one(t) for t in tickers])
+        return dict(results)
+
+    def _error_bundle(self, ticker: str, exc: Exception) -> "FetchBundle":
+        """Return a FetchBundle that records a top-level fetch error."""
+        return FetchBundle(
+            ticker=ticker,
+            errors={"fetch_all": str(exc)},
+        )

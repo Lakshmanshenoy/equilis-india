@@ -1,0 +1,76 @@
+{
+  "ticker": "TCS",
+  "exchange": "NSE",
+  "company_name": "Tata Consultancy Services Limited",
+  "sector": "Information Technology",
+  "industry": "IT Services",
+  "price": {
+    "cmp": 3785.5,
+    "week52_high": 4255.0,
+    "week52_low": 3056.05,
+    "source": "nse_api",
+    "fetched_at": "2024-03-31T15:30:00"
+  },
+  "market": {
+    "market_cap": 1380000,
+    "shares_outstanding": 364.0,
+    "enterprise_value": 1360000
+  },
+  "income": {
+    "revenue_ttm": 240893,
+    "ebitda_ttm": 59900,
+    "ebit": 55000,
+    "pat_ttm": 46099,
+    "gross_profit": 96000,
+    "interest_expense": 380,
+    "depreciation": 4900,
+    "eps_ttm": 126.6,
+    "eps_growth_5yr": 0.10,
+    "dividend_per_share": 73.0,
+    "revenue_5y": [156949, 164177, 191754, 225458, 240893],
+    "pat_5y": [31472, 33388, 38327, 42147, 46099],
+    "ebitda_5y": [40200, 42900, 50100, 55800, 59900]
+  },
+  "balance_sheet": {
+    "total_assets": 153600,
+    "current_assets": 90000,
+    "current_liabilities": 38000,
+    "total_debt": 1200,
+    "equity": 96000,
+    "retained_earnings": 72000,
+    "cash": 22000,
+    "inventory": 0,
+    "receivables": 30000,
+    "payables": 12000,
+    "ppe": 18000,
+    "book_value_per_share": 263.7
+  },
+  "cash_flow": {
+    "cfo_ttm": 50100,
+    "capex_ttm": 4200,
+    "fcf_ttm": 45900,
+    "ocf_5y": [33000, 38000, 44000, 47000, 50100]
+  },
+  "shareholding": {
+    "promoter_holding": 72.3,
+    "promoter_pledging": 0.0,
+    "fii_holding": 11.5,
+    "dii_holding": 6.2,
+    "public_holding": 10.0,
+    "promoter_holding_history": [72.3, 72.3, 72.3, 72.5]
+  },
+  "screener_raw": {
+    "pe_ratio": 29.9,
+    "pb_ratio": 14.4,
+    "ev_ebitda": 22.7,
+    "roe": 0.480,
+    "roce": 0.540,
+    "pat_margin": 0.191,
+    "debt_equity": 0.01,
+    "current_ratio": 2.37
+  },
+  "history": [
+    {"fiscal_year": "FY24", "revenue": 240893, "pat": 46099, "ebitda": 59900, "cfo": 50100, "capex": 4200, "total_assets": 153600, "equity": 96000, "receivables": 30000, "inventory": 0, "other_income": 3200, "pbt": 57000, "related_party_txn": 0, "shares_outstanding": 364.0, "roce": 0.54},
+    {"fiscal_year": "FY23", "revenue": 225458, "pat": 42147, "ebitda": 55800, "cfo": 47000, "capex": 4800, "total_assets": 140000, "equity": 88000, "receivables": 27000, "inventory": 0, "other_income": 2900, "pbt": 52000, "related_party_txn": 0, "shares_outstanding": 366.0, "roce": 0.52}
+  ]
+}
