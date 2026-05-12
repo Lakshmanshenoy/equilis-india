@@ -8,12 +8,12 @@ description: |
   Trigger phrases: "research <ticker>", "analyse <company>", "fundamentals of <stock>",
   "forensic check on <company>", "peer comparison for <sector>", "concall summary for <ticker>".
 argument-hint: "Type of analysis: financials | concall | annual-report | forensics | valuation | technical | sector | moat | management | ipo | thesis | peers | scenario | macro"
-version: "2.0"
+version: "2.1"
 pipeline: "core/pipeline.py"
 cli: "cli/index.js"
 ---
 
-# Equilis India — Equity Research Skill (v2.0)
+# Equilis India — Equity Research Skill (v2.1)
 
 ## Overview
 This skill turns the agent into a structured Indian equity researcher backed by the
@@ -92,6 +92,15 @@ Run `node cli/index.js analyze <TICKER>` OR invoke `AnalysisPipeline.run()`.
 
 **IMPORTANT:** Never use Screener.in CMP — it is stale cache. Price always from NSE API.
 
+**Fetch resilience (implemented):**
+- TLS handling uses certifi CA roots (`core/http_client.py`) for better cross-machine reliability.
+- Optional local debugging override: `EQUILIS_DISABLE_SSL_VERIFY=1`.
+- Screener parser uses BeautifulSoup first, with optional Scrapling backfill for DOM drift.
+- BSE scrip-code lookup uses BSE API first, then Screener-token fallback if needed.
+
+If any source slice is unavailable, continue with partial output and explicitly surface
+source-health diagnostics in the report.
+
 **Fields always fetched:**
 - Revenue, EBITDA, PAT (last 5 years + TTM)
 - EPS (basic and diluted), DPS
@@ -159,6 +168,7 @@ See template: `skills/equity-research/templates/peer_table.md`
 - PDF: `node cli/index.js report <TICKER> --output pdf`
 - Uses template: `skills/equity-research/templates/company_report.md`
 - Compliance disclaimer appended automatically by `core/renderer.py`
+- Source failures are included in a `Source Health Diagnostics` section.
 
 ---
 
@@ -199,6 +209,12 @@ See template: `skills/equity-research/templates/peer_table.md`
 | 6        | MoneyControl/ET  | News, concall summaries only      |
 
 See `docs/data-sources.md` for full source list with rate limits and authentication notes.
+
+## Missing Data Policy
+- Never silently drop unavailable data fields.
+- Report each unavailable fetch category with reason where possible.
+- Preserve completed sections and continue scenario analysis with available validated inputs.
+- Prefer explicit `N/A` over inferred values unless derivation logic is coded and auditable.
 
 ---
 

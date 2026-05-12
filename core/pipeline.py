@@ -52,6 +52,7 @@ class PipelineResult:
     red_flags: Optional[list[dict]] = None
     report_path: Optional[str] = None
     report_markdown: Optional[str] = None
+    fetch_errors: dict = field(default_factory=dict)
     validation_issues: list = field(default_factory=list)
     elapsed_seconds: float = 0.0
 
@@ -87,6 +88,7 @@ class AnalysisPipeline:
         result.stage = "fetch"
         try:
             bundle: FetchBundle = await self._fetcher.fetch_all(config.ticker)
+            result.fetch_errors = bundle.errors or {}
             if not bundle.financials and not bundle.price:
                 result.error = "All data sources returned no data."
                 return result
@@ -103,6 +105,7 @@ class AnalysisPipeline:
                 ticker=config.ticker,
                 exchange=config.exchange,
             )
+            snapshot.fetch_errors = bundle.errors or {}
             result.snapshot = snapshot
         except Exception as e:
             result.error = f"Normalise stage failed: {e}"
@@ -156,6 +159,7 @@ class AnalysisPipeline:
                 scenarios=result.scenarios,
                 red_flags=red_flags,
                 validation_issues=result.validation_issues,
+                fetch_errors=result.fetch_errors,
             )
             result.report_markdown = markdown
 

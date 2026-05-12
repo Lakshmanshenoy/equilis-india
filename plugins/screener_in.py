@@ -17,6 +17,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+from core.http_client import build_aiohttp_connector
 from plugins._base import BasePlugin, FetchResult
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ class ScreenerInPlugin(BasePlugin):
                 self._last_request_at = datetime.now()
                 return await resp.text()
         else:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=build_aiohttp_connector()) as session:
                 async with session.get(url, headers=headers) as resp:
                     resp.raise_for_status()
                     self._last_request_at = datetime.now()
@@ -152,6 +153,14 @@ class ScreenerInPlugin(BasePlugin):
             if section:
                 result["tables"][key] = self._parse_table(section)
 
+        if self._needs_backfill(result["tables"]):
+            backfill = self._parse_financials_with_scrapling(html)
+            for key, table in backfill.items():
+                if not result["tables"].get(key):
+                    result["tables"][key] = table
+                elif not result["tables"][key].get("rows") and table.get("rows"):
+                    result["tables"][key] = table
+
         # Extract TTM values from quarterly section if available
         result["ttm"] = self._extract_ttm(soup)
         return result
@@ -163,14 +172,51 @@ class ScreenerInPlugin(BasePlugin):
             return {}
         headers = [th.get_text(strip=True) for th in table.find_all("th")]
         rows = {}
-        for tr in table.find_all("tr"):
-            cells = tr.find_all("td")
-            if not cells:
+        tbody = table.find("tbody") or table
+        for tr in tbody.find_all("tr"):
+            cells = tr.find_all(["td", "th"])
+            if len(cells) < 2:
                 continue
             row_label = cells[0].get_text(strip=True)
+            if not row_label or row_label.lower() in {"particulars", "items"}:
+                continue
             values = [c.get_text(strip=True).replace(",", "") for c in cells[1:]]
             rows[row_label] = values
         return {"headers": headers, "rows": rows}
+
+    def _needs_backfill(self, tables: dict) -> bool:
+        core = ("income", "balance_sheet", "cash_flow")
+        for key in core:
+            if not tables.get(key) or not tables.get(key, {}).get("rows"):
+                return True
+        return False
+
+    def _parse_financials_with_scrapling(self, html: str) -> dict:
+        """Optional backfill parser using Scrapling selectors when BS4 misses sections."""
+        try:
+            from scrapling.parser import Selector
+            from bs4 import BeautifulSoup
+        except Exception:
+            return {}
+
+        page = Selector(content=html)
+        section_ids = {
+            "profit-loss": "income",
+            "balance-sheet": "balance_sheet",
+            "cash-flow": "cash_flow",
+            "quarters": "quarterly",
+        }
+        parsed = {}
+        for sid, key in section_ids.items():
+            section = page.css(f"section#{sid}").first
+            if not section:
+                continue
+            table = section.css("table").first
+            if not table:
+                continue
+            soup = BeautifulSoup(table.get(), "lxml")
+            parsed[key] = self._parse_table(soup)
+        return parsed
 
     def _extract_ttm(self, soup) -> dict:
         """Extract TTM (trailing twelve months) figures from quarterly section."""

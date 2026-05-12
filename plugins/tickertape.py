@@ -7,6 +7,7 @@ Used when NSE API and Screener.in are unavailable or return incomplete data.
 import logging
 from datetime import datetime
 
+from core.http_client import build_aiohttp_connector
 from plugins._base import BasePlugin, FetchResult
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class TickertapePlugin(BasePlugin):
                 resp.raise_for_status()
                 return await resp.json()
         else:
-            async with aiohttp.ClientSession() as s:
+            async with aiohttp.ClientSession(connector=build_aiohttp_connector()) as s:
                 async with s.get(url, params=params, headers=headers) as resp:
                     resp.raise_for_status()
                     return await resp.json()
@@ -110,7 +111,7 @@ class TickertapePlugin(BasePlugin):
             self._session = aiohttp.ClientSession(headers={
                 "User-Agent": "Mozilla/5.0 (compatible; equilis-india/2.0; research-only)",
                 "Accept": "application/json",
-            })
+            }, connector=build_aiohttp_connector())
         return self._session
 
     def health_check(self) -> bool:

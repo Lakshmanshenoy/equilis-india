@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from core.cache import CacheManager
+from core.cache_config import CACHE_TTL_SECONDS
 from plugins._base import BasePlugin, FetchResult
 
 logger = logging.getLogger(__name__)
@@ -39,14 +40,7 @@ SOURCE_CONCURRENCY: dict[str, int] = {
 MAX_RETRIES: int = 3
 RETRY_BACKOFF: list[int] = [1, 3, 7]  # seconds to wait before each retry attempt
 
-TTL_CONFIG: dict[str, int] = {
-    "price":           15,     # minutes
-    "financials":      360,
-    "shareholding":    1440,
-    "corp_actions":    1440,
-    "concalls":        10080,
-    "peers":           1440,
-}
+TTL_CONFIG: dict[str, int] = CACHE_TTL_SECONDS
 
 
 @dataclass
@@ -89,13 +83,13 @@ class DataFetcher:
 
     def _result_is_fresh(self, result: FetchResult, data_type: str) -> bool:
         """Return True if a cached FetchResult is within TTL for the data type."""
-        ttl_minutes = TTL_CONFIG.get(data_type, 60)
+        ttl_seconds = TTL_CONFIG.get(data_type, 3600)
         if not result or not hasattr(result, "fetched_at"):
             return False
         fetched_at = result.fetched_at
         now = datetime.now(timezone.utc) if getattr(fetched_at, "tzinfo", None) else datetime.now()
-        delta = (now - fetched_at).total_seconds() / 60
-        return delta < ttl_minutes
+        delta = (now - fetched_at).total_seconds()
+        return delta < ttl_seconds
 
     async def _try_sources(
         self,
@@ -191,6 +185,16 @@ class DataFetcher:
         bundle.corporate_actions = _assign(
             "corporate_actions", corp_actions, "corporate_actions"
         )
+
+        if bundle.price is None and "price" not in errors:
+            errors["price"] = "No source returned data for price."
+        if bundle.financials is None and "financials" not in errors:
+            errors["financials"] = "No source returned data for financials."
+        if bundle.shareholding is None and "shareholding" not in errors:
+            errors["shareholding"] = "No source returned data for shareholding."
+        if bundle.corporate_actions is None and "corporate_actions" not in errors:
+            errors["corporate_actions"] = "No source returned data for corporate actions."
+
         bundle.errors = errors
 
         if errors:

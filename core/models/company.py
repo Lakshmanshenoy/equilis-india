@@ -136,6 +136,7 @@ class CompanySnapshot:
 
     sources: list[SourceMeta] = field(default_factory=list)
     snapshot_date: Optional[datetime] = None
+    fetch_errors: dict = field(default_factory=dict)
 
     # Multi-year history (newest first, e.g. FY24 at index 0)
     history: list["YearlyFinancials"] = field(default_factory=list)

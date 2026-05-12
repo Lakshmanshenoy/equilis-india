@@ -9,9 +9,11 @@ Primary authority for:
 """
 
 import logging
+import re
 from datetime import datetime
 from typing import Optional
 
+from core.http_client import build_aiohttp_connector
 from plugins._base import BasePlugin, FetchResult
 
 logger = logging.getLogger(__name__)
@@ -65,12 +67,27 @@ class BseFilingsPlugin(BasePlugin):
                 resp.raise_for_status()
                 return await resp.json(content_type=None)
         else:
-            async with aiohttp.ClientSession() as s:
+            async with aiohttp.ClientSession(connector=build_aiohttp_connector()) as s:
                 async with s.get(
                     url, params=params, headers=BSE_HEADERS
                 ) as resp:
                     resp.raise_for_status()
                     return await resp.json(content_type=None)
+
+    async def _get_text(self, url: str, params: dict = None) -> str:
+        import aiohttp
+        if self._session:
+            async with self._session.get(
+                url, params=params, headers=BSE_HEADERS
+            ) as resp:
+                resp.raise_for_status()
+                return await resp.text()
+        async with aiohttp.ClientSession(connector=build_aiohttp_connector()) as s:
+            async with s.get(
+                url, params=params, headers=BSE_HEADERS
+            ) as resp:
+                resp.raise_for_status()
+                return await resp.text()
 
     async def fetch_price(self, ticker: str) -> FetchResult:
         """BSE does not provide a clean price API — raises NotImplementedError."""
@@ -82,6 +99,8 @@ class BseFilingsPlugin(BasePlugin):
         Requires BSE company code (6-digit). Uses code_map if provided.
         """
         code = self._bse_code(ticker)
+        if not code:
+            code = await self._get_scrip_code(ticker)
         if not code:
             raise ValueError(
                 f"BSE code not found for {ticker}. "
@@ -103,6 +122,8 @@ class BseFilingsPlugin(BasePlugin):
         """
         code = self._bse_code(ticker)
         if not code:
+            code = await self._get_scrip_code(ticker)
+        if not code:
             # Try to resolve via BSE search
             raise ValueError(
                 f"BSE code not found for {ticker}. Provide bse_code_map at init."
@@ -120,6 +141,8 @@ class BseFilingsPlugin(BasePlugin):
     async def fetch_corporate_actions(self, ticker: str) -> FetchResult:
         """Fetch dividends, bonus, splits, rights from BSE corporate actions."""
         code = self._bse_code(ticker)
+        if not code:
+            code = await self._get_scrip_code(ticker)
         if not code:
             raise ValueError(f"BSE code not found for {ticker}.")
         url = f"{BSE_API_BASE}/CorporateActions/w"
@@ -158,6 +181,29 @@ class BseFilingsPlugin(BasePlugin):
                     return code
         except Exception as e:
             logger.warning(f"[bse_filings] Failed to resolve scrip code for {ticker}: {e}")
+        code = await self._resolve_scrip_from_screener(ticker_upper)
+        if code:
+            self._bse_code_cache[ticker_upper] = code
+            return code
+        return None
+
+    async def _resolve_scrip_from_screener(self, ticker_upper: str) -> Optional[str]:
+        """Fallback resolver: parse Screener page for BSE code token."""
+        url = f"https://www.screener.in/company/{ticker_upper}/consolidated/"
+        try:
+            html = await self._get_text(url)
+        except Exception:
+            return None
+
+        # Common patterns seen on Screener pages: "BSE: 500325".
+        m = re.search(r"BSE\s*[:\-]\s*(\d{6})", html, flags=re.IGNORECASE)
+        if m:
+            return m.group(1)
+
+        # Fallback pattern in case the token appears in JSON blobs.
+        m = re.search(r'"bse"\s*:\s*"?(\d{6})"?', html, flags=re.IGNORECASE)
+        if m:
+            return m.group(1)
         return None
 
     async def fetch_announcements(self, ticker: str, days: int = 90) -> FetchResult:

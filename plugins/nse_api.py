@@ -14,6 +14,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+from core.http_client import build_aiohttp_connector
 from plugins._base import BasePlugin, FetchResult
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ class NseApiPlugin(BasePlugin):
                 async with self._session.get(NSE_BASE, headers=REQUEST_HEADERS) as resp:
                     self._cookies = {k: v.value for k, v in resp.cookies.items()}
             else:
-                async with aiohttp.ClientSession() as s:
+                async with aiohttp.ClientSession(connector=build_aiohttp_connector()) as s:
                     async with s.get(NSE_BASE, headers=REQUEST_HEADERS) as resp:
                         self._cookies = {k: v.value for k, v in resp.cookies.items()}
             self._session_refreshed_at = datetime.now()
@@ -81,7 +82,7 @@ class NseApiPlugin(BasePlugin):
                 resp.raise_for_status()
                 return await resp.json()
         else:
-            async with aiohttp.ClientSession() as s:
+            async with aiohttp.ClientSession(connector=build_aiohttp_connector()) as s:
                 async with s.get(
                     url, params=params, headers=headers, cookies=self._cookies
                 ) as resp:

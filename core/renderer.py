@@ -59,6 +59,7 @@ class ReportRenderer:
         scenarios: Optional[ScenarioResult] = None,
         red_flags: Optional[list[dict]] = None,
         validation_issues: Optional[list[ValidationIssue]] = None,
+        fetch_errors: Optional[dict] = None,
         # Phase 2 optional sections
         dupont_trend: Optional[DuPontResult] = None,
         cf_quality_trend: Optional[CashFlowQualityResult] = None,
@@ -72,6 +73,9 @@ class ReportRenderer:
         ]
         if validation_issues:
             sections.append(self._validation_banner(validation_issues))
+        effective_fetch_errors = fetch_errors or getattr(snapshot, "fetch_errors", {})
+        if effective_fetch_errors:
+            sections.append(self._fetch_health_section(effective_fetch_errors))
         if ratios:
             sections.append(self._ratios_table(ratios))
             if ratios.dupont:
@@ -94,6 +98,13 @@ class ReportRenderer:
         sections.append(self._sources_section(snapshot))
         sections.append(self._footer(snapshot))
         return "\n\n".join(filter(None, sections))
+
+    def _fetch_health_section(self, fetch_errors: dict) -> str:
+        lines = ["## Source Health Diagnostics", ""]
+        for key, message in fetch_errors.items():
+            label = str(key).replace("_", " ").title()
+            lines.append(f"- ⚠ **{label}**: {message}")
+        return "\n".join(lines)
 
     def save(
         self,

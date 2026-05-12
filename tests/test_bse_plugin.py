@@ -76,3 +76,28 @@ async def test_get_scrip_code_uses_cache(bse_plugin):
     bse_plugin._get_json = AsyncMock(side_effect=AssertionError("API should not be called"))
     code = await bse_plugin._get_scrip_code("INFY")
     assert code == "500209"
+
+
+@pytest.mark.asyncio
+async def test_fetch_shareholding_resolves_scrip_code_when_map_missing():
+    plugin = BseFilingsPlugin(bse_code_map={})
+    plugin._get_scrip_code = AsyncMock(return_value="500325")
+    plugin._get_json = AsyncMock(return_value={"Table": []})
+
+    result = await plugin.fetch_shareholding("RELIANCE")
+
+    assert result is not None
+    assert isinstance(result.data, dict)
+    plugin._get_scrip_code.assert_awaited_once_with("RELIANCE")
+
+
+@pytest.mark.asyncio
+async def test_get_scrip_code_falls_back_to_screener_page():
+    plugin = BseFilingsPlugin(bse_code_map={})
+    plugin._get_json = AsyncMock(side_effect=ValueError("non-json response"))
+    plugin._get_text = AsyncMock(return_value="<span>BSE: 500325</span>")
+
+    code = await plugin._get_scrip_code("RELIANCE")
+
+    assert code == "500325"
+    assert plugin._bse_code_cache["RELIANCE"] == "500325"

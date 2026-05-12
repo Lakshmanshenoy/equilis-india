@@ -8,19 +8,12 @@ import logging
 import os
 from typing import Any, Optional
 
+from core.cache_config import CACHE_TTL_SECONDS
+
 CACHE_DIR = os.path.expanduser("~/.equilis/cache")
 logger = logging.getLogger(__name__)
 
-# TTLs in seconds
-TTL_CONFIG = {
-    "price":          60 * 15,            # 15 minutes
-    "financials":     60 * 60 * 6,        # 6 hours
-    "shareholding":   60 * 60 * 24,       # 24 hours
-    "corporate_actions": 60 * 60 * 24,   # 24 hours
-    "concall":        60 * 60 * 24 * 7,  # 7 days
-    "peers":          60 * 60 * 24,       # 24 hours
-    "news":           60 * 60 * 4,        # 4 hours
-}
+TTL_CONFIG = CACHE_TTL_SECONDS
 
 
 class CacheManager:

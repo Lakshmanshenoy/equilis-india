@@ -150,3 +150,32 @@ def test_cache_prevents_second_fetch():
     asyncio.run(fetcher.fetch_price("CACHETEST"))
     asyncio.run(fetcher.fetch_price("CACHETEST"))   # Should hit cache
     assert call_count["n"] == 1
+
+
+def test_corporate_actions_cache_uses_expected_data_type_key():
+    """Corporate actions must be cached under the canonical data type key."""
+
+    class CaptureSetCache:
+        def __init__(self):
+            self.set_calls = []
+
+        def get(self, data_type, ticker):
+            return None
+
+        def set(self, data_type, ticker, value):
+            self.set_calls.append((data_type, ticker))
+
+    class CorpActionsPlugin:
+        name = "nse_api"
+        display_name = "Corp Actions"
+
+        async def fetch_corporate_actions(self, ticker):
+            return make_result("nse_api", {"actions": [{"type": "dividend"}]})
+
+    cache = CaptureSetCache()
+    fetcher = DataFetcher(plugins={"nse_api": CorpActionsPlugin()}, cache=cache)
+
+    result = asyncio.run(fetcher.fetch_corporate_actions("INFY"))
+
+    assert result is not None
+    assert ("corporate_actions", "INFY") in cache.set_calls

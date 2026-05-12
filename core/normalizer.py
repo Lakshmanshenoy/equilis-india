@@ -190,73 +190,82 @@ class DataNormalizer:
         # ── P&L ──────────────────────────────────────────────────────────────
         income_rows = tables.get("income", {}).get("rows", {})
         income.revenue_ttm = _screener_unit_to_crore(
-            ttm.get("Sales") or ttm.get("Revenue") or
-            self._last_val(income_rows, "Sales")
+            ttm.get("Sales") or ttm.get("Revenue") or ttm.get("Revenue from Operations") or
+            self._last_val_any(income_rows, "Sales", "Revenue", "Revenue from Operations", "Total Income")
         )
         income.pat_ttm = _screener_unit_to_crore(
-            ttm.get("Net Profit") or self._last_val(income_rows, "Net Profit")
+            ttm.get("Net Profit") or ttm.get("Profit after tax") or
+            self._last_val_any(income_rows, "Net Profit", "Profit after tax", "PAT")
         )
         income.ebitda_ttm = _screener_unit_to_crore(
-            ttm.get("Operating Profit") or
-            self._last_val(income_rows, "Operating Profit")
+            ttm.get("Operating Profit") or ttm.get("EBITDA") or
+            self._last_val_any(income_rows, "Operating Profit", "EBITDA", "PBDIT")
         )
         income.eps_ttm = _to_float(
-            ttm.get("EPS in Rs") or self._last_val(income_rows, "EPS in Rs")
+            ttm.get("EPS in Rs") or ttm.get("EPS") or
+            self._last_val_any(income_rows, "EPS in Rs", "EPS")
         )
-        income.revenue_5y = self._extract_series(income_rows, "Sales")
-        income.pat_5y = self._extract_series(income_rows, "Net Profit")
-        income.ebitda_5y = self._extract_series(income_rows, "Operating Profit")
+        income.revenue_5y = self._extract_series_any(income_rows, "Sales", "Revenue", "Revenue from Operations", "Total Income")
+        income.pat_5y = self._extract_series_any(income_rows, "Net Profit", "Profit after tax", "PAT")
+        income.ebitda_5y = self._extract_series_any(income_rows, "Operating Profit", "EBITDA", "PBDIT")
 
         # ── Balance sheet ─────────────────────────────────────────────────────
         bs_rows = tables.get("balance_sheet", {}).get("rows", {})
         bs.total_assets = _screener_unit_to_crore(
-            self._last_val(bs_rows, "Total Assets")
+            self._last_val_any(bs_rows, "Total Assets")
         )
-        bs.equity = _screener_unit_to_crore(
-            self._last_val(bs_rows, "Equity Capital") or
-            self._last_val(bs_rows, "Total Equity")
+        total_equity = _screener_unit_to_crore(
+            self._last_val_any(bs_rows, "Total Equity", "Net Worth", "Shareholders Funds")
         )
+        if total_equity is None:
+            equity_capital = _screener_unit_to_crore(self._last_val_any(bs_rows, "Equity Capital", "Share Capital"))
+            reserves = _screener_unit_to_crore(self._last_val_any(bs_rows, "Reserves", "Reserves & Surplus"))
+            if equity_capital is not None and reserves is not None:
+                total_equity = equity_capital + reserves
+        bs.equity = total_equity
         bs.total_debt = _screener_unit_to_crore(
-            self._last_val(bs_rows, "Borrowings") or
-            self._last_val(bs_rows, "Total Debt")
+            self._last_val_any(bs_rows, "Borrowings", "Total Debt", "Debt")
         )
         bs.current_assets = _screener_unit_to_crore(
-            self._last_val(bs_rows, "Current Assets")
+            self._last_val_any(bs_rows, "Current Assets")
         )
         bs.current_liabilities = _screener_unit_to_crore(
-            self._last_val(bs_rows, "Current Liabilities")
+            self._last_val_any(bs_rows, "Current Liabilities")
         )
         bs.inventory = _screener_unit_to_crore(
-            self._last_val(bs_rows, "Inventories")
+            self._last_val_any(bs_rows, "Inventories", "Inventory")
         )
         bs.receivables = _screener_unit_to_crore(
-            self._last_val(bs_rows, "Trade Receivables") or
-            self._last_val(bs_rows, "Debtors")
+            self._last_val_any(bs_rows, "Trade Receivables", "Debtors", "Receivables")
         )
         bs.cash = _screener_unit_to_crore(
-            self._last_val(bs_rows, "Cash Equivalents") or
-            self._last_val(bs_rows, "Cash & Bank")
+            self._last_val_any(bs_rows, "Cash Equivalents", "Cash & Bank", "Cash and Cash Equivalents")
         )
 
         # ── Cash flow ─────────────────────────────────────────────────────────
         cf_rows = tables.get("cash_flow", {}).get("rows", {})
         cf.cfo_ttm = _screener_unit_to_crore(
-            self._last_val(cf_rows, "Cash from Operations") or
-            self._last_val(cf_rows, "Operating Activity")
+            self._last_val_any(cf_rows, "Cash from Operations", "Cash from Operating Activity", "Operating Activity")
         )
         cf.capex_ttm = _screener_unit_to_crore(
-            self._last_val(cf_rows, "Capital Expenditure") or
-            self._last_val(cf_rows, "CAPEX")
+            self._last_val_any(cf_rows, "Capital Expenditure", "CAPEX")
         )
         if cf.cfo_ttm is not None and cf.capex_ttm is not None:
             cf.fcf_ttm = cf.cfo_ttm - abs(cf.capex_ttm)
-        cf.ocf_5y = self._extract_series(cf_rows, "Cash from Operations")
+        cf.ocf_5y = self._extract_series_any(cf_rows, "Cash from Operations", "Cash from Operating Activity", "Operating Activity")
 
         snapshot.income = income
         snapshot.balance_sheet = bs
         snapshot.cash_flow = cf
         if snapshot.market is None:
             snapshot.market = market
+        if (
+            snapshot.market.shares_outstanding is None
+            and income.pat_ttm is not None
+            and income.eps_ttm not in (None, 0)
+        ):
+            # PAT is in crore and EPS is in rupees; output shares outstanding in million.
+            snapshot.market.shares_outstanding = (income.pat_ttm * 10.0) / income.eps_ttm
 
     def _normalise_direct_financials(self, snapshot: CompanySnapshot, data: dict) -> None:
         """Normalise plugin payloads that already use standard-ish field names."""
@@ -355,15 +364,45 @@ class DataNormalizer:
         vals = rows.get(key, [])
         if vals:
             return vals[-1]
+        key_norm = DataNormalizer._norm_key(key)
+        for row_key, row_vals in rows.items():
+            if DataNormalizer._norm_key(row_key) == key_norm and row_vals:
+                return row_vals[-1]
         return None
+
+    @staticmethod
+    def _last_val_any(rows: dict, *keys: str) -> Optional[str]:
+        for key in keys:
+            val = DataNormalizer._last_val(rows, key)
+            if val is not None:
+                return val
+        return None
+
+    @staticmethod
+    def _norm_key(value: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", (value or "").lower())
 
     @staticmethod
     def _extract_series(rows: dict, key: str) -> list[float]:
         """Extract all numeric values from a table row, oldest-first."""
         raw_vals = rows.get(key, [])
+        if not raw_vals:
+            key_norm = DataNormalizer._norm_key(key)
+            for row_key, row_vals in rows.items():
+                if DataNormalizer._norm_key(row_key) == key_norm:
+                    raw_vals = row_vals
+                    break
         result = []
         for v in raw_vals:
             f = _screener_unit_to_crore(v)
             if f is not None:
                 result.append(f)
         return result
+
+    @staticmethod
+    def _extract_series_any(rows: dict, *keys: str) -> list[float]:
+        for key in keys:
+            vals = DataNormalizer._extract_series(rows, key)
+            if vals:
+                return vals
+        return []
