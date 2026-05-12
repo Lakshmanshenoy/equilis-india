@@ -135,6 +135,9 @@ class CompanySnapshot:
     nse_raw: dict = field(default_factory=dict)
 
     sources: list[SourceMeta] = field(default_factory=list)
+    # Field-level provenance map: field path -> metadata
+    # Example key: "income.revenue_ttm"
+    field_provenance: dict = field(default_factory=dict)
     snapshot_date: Optional[datetime] = None
     fetch_errors: dict = field(default_factory=dict)
 

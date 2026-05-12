@@ -128,6 +128,9 @@ class DataNormalizer:
             else:
                 snapshot.nse_raw.update(bundle.price.data)
             self._merge_market_from_price(snapshot, bundle.price.data)
+            self._set_provenance(snapshot, "price.cmp", snapshot.price.cmp, bundle.price)
+            self._set_provenance(snapshot, "price.week52_high", snapshot.price.week52_high, bundle.price)
+            self._set_provenance(snapshot, "price.week52_low", snapshot.price.week52_low, bundle.price)
             snapshot.sources.append(SourceMeta(
                 source_name=bundle.price.source_name,
                 source_url=bundle.price.source_url,
@@ -137,6 +140,11 @@ class DataNormalizer:
 
         if bundle.financials:
             self._normalise_financials(snapshot, bundle.financials, latest_fy_end_year)
+            self._set_provenance(snapshot, "income.revenue_ttm", snapshot.income.revenue_ttm if snapshot.income else None, bundle.financials)
+            self._set_provenance(snapshot, "income.pat_ttm", snapshot.income.pat_ttm if snapshot.income else None, bundle.financials)
+            self._set_provenance(snapshot, "income.ebitda_ttm", snapshot.income.ebitda_ttm if snapshot.income else None, bundle.financials)
+            self._set_provenance(snapshot, "balance_sheet.total_debt", snapshot.balance_sheet.total_debt if snapshot.balance_sheet else None, bundle.financials)
+            self._set_provenance(snapshot, "cash_flow.cfo_ttm", snapshot.cash_flow.cfo_ttm if snapshot.cash_flow else None, bundle.financials)
             if "screener" in bundle.financials.source_name.lower():
                 snapshot.screener_raw.update(bundle.financials.data)
             elif "tickertape" in bundle.financials.source_name.lower():
@@ -152,6 +160,12 @@ class DataNormalizer:
 
         if bundle.shareholding:
             snapshot.shareholding = self._normalise_shareholding(bundle.shareholding)
+            self._set_provenance(
+                snapshot,
+                "shareholding.promoter_holding",
+                snapshot.shareholding.promoter_holding if snapshot.shareholding else None,
+                bundle.shareholding,
+            )
             snapshot.sources.append(SourceMeta(
                 source_name=bundle.shareholding.source_name,
                 source_url=bundle.shareholding.source_url,
@@ -160,6 +174,19 @@ class DataNormalizer:
             ))
 
         return snapshot
+
+    @staticmethod
+    def _set_provenance(snapshot: CompanySnapshot, field_path: str, value: Any, result) -> None:
+        snapshot.field_provenance[field_path] = {
+            "status": "Present" if value is not None else "Unavailable",
+            "source": getattr(result, "source_name", "unknown"),
+            "fetched_at": (
+                result.fetched_at.isoformat()
+                if getattr(result, "fetched_at", None) is not None
+                else None
+            ),
+            "is_fallback": bool(getattr(result, "is_fallback", False)),
+        }
 
     def _normalise_price(self, result) -> PriceData:
         d = result.data

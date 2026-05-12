@@ -383,24 +383,40 @@ class ReportRenderer:
 
     def _field_coverage_section(self, s: CompanySnapshot) -> str:
         fields = [
-            ("CMP", getattr(s.price, "cmp", None), getattr(s.price, "source", "N/A")),
-            ("Revenue TTM", getattr(s.income, "revenue_ttm", None), "financials"),
-            ("PAT TTM", getattr(s.income, "pat_ttm", None), "financials"),
-            ("EBITDA TTM", getattr(s.income, "ebitda_ttm", None), "financials"),
-            ("Total Debt", getattr(s.balance_sheet, "total_debt", None), "financials"),
-            ("CFO TTM", getattr(s.cash_flow, "cfo_ttm", None), "financials"),
-            ("Promoter Holding", getattr(s.shareholding, "promoter_holding", None), getattr(s.shareholding, "source", "N/A")),
+            ("CMP", "price.cmp", getattr(s.price, "cmp", None), getattr(s.price, "source", "N/A"), getattr(s.price, "fetched_at", None)),
+            ("Revenue TTM", "income.revenue_ttm", getattr(s.income, "revenue_ttm", None), "financials", None),
+            ("PAT TTM", "income.pat_ttm", getattr(s.income, "pat_ttm", None), "financials", None),
+            ("EBITDA TTM", "income.ebitda_ttm", getattr(s.income, "ebitda_ttm", None), "financials", None),
+            ("Total Debt", "balance_sheet.total_debt", getattr(s.balance_sheet, "total_debt", None), "financials", None),
+            ("CFO TTM", "cash_flow.cfo_ttm", getattr(s.cash_flow, "cfo_ttm", None), "financials", None),
+            (
+                "Promoter Holding",
+                "shareholding.promoter_holding",
+                getattr(s.shareholding, "promoter_holding", None),
+                getattr(s.shareholding, "source", "N/A"),
+                getattr(s.shareholding, "fetched_at", None),
+            ),
         ]
 
         lines = [
             "## Field Coverage",
             "",
-            "| Field | Status | Source |",
-            "| --- | --- | --- |",
+            "| Field | Status | Source | Fetched |",
+            "| --- | --- | --- | --- |",
         ]
-        for label, value, source in fields:
-            status = "Present" if value is not None else "Unavailable"
-            lines.append(f"| {label} | {status} | {source} |")
+        provenance = getattr(s, "field_provenance", {}) or {}
+        for label, field_path, value, default_source, default_fetched in fields:
+            meta = provenance.get(field_path, {})
+            status = meta.get("status") or ("Present" if value is not None else "Unavailable")
+            source = meta.get("source") or default_source
+            fetched = meta.get("fetched_at")
+            if fetched:
+                fetched = fetched.replace("T", " ")[:16]
+            elif default_fetched:
+                fetched = default_fetched.strftime("%d %b %Y %H:%M")
+            else:
+                fetched = "N/A"
+            lines.append(f"| {label} | {status} | {source} | {fetched} |")
         return "\n".join(lines)
 
     def _sources_section(self, s: CompanySnapshot) -> str:

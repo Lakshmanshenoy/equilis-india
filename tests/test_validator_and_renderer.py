@@ -58,3 +58,17 @@ def test_renderer_includes_field_coverage_section():
     assert "## Field Coverage" in md
     assert "| Promoter Holding | Unavailable |" in md
     assert "| CMP | Present |" in md
+
+
+def test_renderer_uses_field_provenance_when_available():
+    s = _make_snapshot()
+    s.field_provenance["income.revenue_ttm"] = {
+        "status": "Present",
+        "source": "screener_in",
+        "fetched_at": "2026-05-12T13:30:00",
+        "is_fallback": False,
+    }
+
+    md = ReportRenderer().render_markdown(snapshot=s)
+
+    assert "| Revenue TTM | Present | screener_in | 2026-05-12 13:30 |" in md
