@@ -1,0 +1,61 @@
+<!-- 5-Year Financial History Table -->
+{% if history %}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="text-align:left">Year</th>
+      <th>Revenue</th>
+      <th>YoY%</th>
+      <th>EBITDA</th>
+      <th>EBITDA%</th>
+      <th>PAT</th>
+      <th>PAT%</th>
+      <th>CFO</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for yr in history %}
+    <tr>
+      <td>{{ yr.fiscal_year | na("—") }}</td>
+      <td>{{ yr.revenue | inr }}</td>
+      <td>
+        {% set rg = yr.revenue_growth if yr.revenue_growth is defined else none %}
+        {% if rg is not none %}
+          <span class="{{ 'value-positive' if rg >= 0 else 'value-negative' }}">
+            {{ rg | signed }}
+          </span>
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>{{ yr.ebitda | inr }}</td>
+      <td>
+        {% set em = yr.ebitda_margin if yr.ebitda_margin is defined else none %}
+        {% if em is not none %}
+          {{ em | pct }}
+        {% elif yr.revenue and yr.ebitda %}
+          {{ (yr.ebitda / yr.revenue) | pct }}
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      <td>{{ yr.pat | inr }}</td>
+      <td>
+        {% set pm = yr.pat_margin if yr.pat_margin is defined else none %}
+        {% if pm is not none %}
+          {{ pm | pct }}
+        {% elif yr.revenue and yr.pat %}
+          {{ (yr.pat / yr.revenue) | pct }}
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </td>
+      {% set cfo_val = yr.cfo if yr.cfo is defined else none %}
+      <td>{{ cfo_val | inr if cfo_val is not none else "—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">Historical financials not available.</div>
+{% endif %}

@@ -8,6 +8,7 @@ This file is intentionally thin — it wires CLI args to pipeline.py.
 
 import argparse
 import asyncio
+from datetime import datetime
 import json
 import logging
 import os
@@ -185,6 +186,45 @@ async def run_warmup(args) -> dict:
     return {"success": True, "stdout": "\n".join(output_lines), "reportPath": None}
 
 
+async def run_report(args) -> dict:
+    """
+    Generate a branded PDF (or HTML) report using PDFReportExporter.
+    Falls back to run_analyze() markdown if Weasyprint is unavailable.
+    """
+    from core.cache import CacheManager
+    from core.fetcher import DataFetcher
+    from core.normalizer import DataNormalizer
+
+    cache     = None if args.no_cache else CacheManager()
+    fetcher   = DataFetcher(plugins=build_plugins(args.no_cache), cache=cache)
+    bundle    = await fetcher.fetch_all(args.ticker)
+    normalizer = DataNormalizer()
+    snapshot  = normalizer.normalise(bundle, ticker=args.ticker, exchange=args.exchange)
+
+    dest_dir = args.output_dir or None
+
+    try:
+        from plugins.pdf_export import PDFReportExporter
+        exporter = PDFReportExporter(dest_dir=dest_dir)
+
+        if getattr(args, "format", "pdf") == "html":
+            import os
+            html_str = exporter.render_html(snapshot)
+            from pathlib import Path
+            html_dir = Path(dest_dir).expanduser() if dest_dir else Path.home() / "Downloads"
+            html_dir.mkdir(parents=True, exist_ok=True)
+            html_path = html_dir / f"{snapshot.ticker.upper()}_equilis_{datetime.now():%Y%m%d}.html"
+            html_path.write_text(html_str, encoding="utf-8")
+            filepath = str(html_path)
+            return {"success": True, "stdout": f"HTML report saved: {filepath}", "reportPath": filepath}
+        else:
+            filepath = exporter.export_analysis(snapshot, dest_dir=dest_dir)
+            return {"success": True, "stdout": f"PDF report saved: {filepath}", "reportPath": filepath}
+    except Exception as exc:
+        logger.warning("PDF export failed (%s), falling back to markdown", exc)
+        return await run_analyze(args)
+
+
 async def main():
     parser = argparse.ArgumentParser(description="Equilis India CLI Python runner")
     parser.add_argument("--command", default="analyze",
@@ -204,13 +244,16 @@ async def main():
     parser.add_argument("--min-roe", type=float, default=None)
     parser.add_argument("--max-pe", type=float, default=None)
     parser.add_argument("--min-mcap", type=float, default=None)
+    parser.add_argument("--format", default="pdf", choices=["pdf", "html"])
 
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 
     try:
-        if args.command in ("analyze", "report"):
+        if args.command == "report":
+            result = await run_report(args)
+        elif args.command == "analyze":
             result = await run_analyze(args)
         elif args.command == "scenario":
             result = await run_scenario(args)

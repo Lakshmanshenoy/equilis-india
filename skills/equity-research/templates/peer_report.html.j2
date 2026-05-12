@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Peer Comparison — equilis Equity Research</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;700&display=swap');
+</style>
+{% include "partials/_styles.html.j2" %}
+</head>
+<body>
+
+{# ===================================================================
+   PAGE 1 — COVER (peer)
+   =================================================================== #}
+<div class="page cover-page">
+  <div class="cover-accent-bar"></div>
+  <div class="cover-header">
+    <div class="cover-brand">equilis — india</div>
+    <div class="cover-tagline">Peer Comparison Report</div>
+  </div>
+  <hr class="cover-divider">
+  <div class="cover-company-block">
+    <div class="cover-company-name">Peer Analysis</div>
+    <div class="cover-ticker-row">
+      {% for t in tickers %}
+      <span class="cover-ticker">{{ t }}</span>
+      {% endfor %}
+      {% if sector %}<span class="cover-sector">{{ sector }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-footer-left">
+      <div class="cover-footer-text">Report Date: {{ report_date | date_fmt }}</div>
+    </div>
+    <div class="cover-footer-right">
+      <div class="cover-footer-text">Not investment advice. Research purposes only.</div>
+    </div>
+  </div>
+</div>
+
+{# ===================================================================
+   PAGE 2 — COMPARISON TABLE
+   =================================================================== #}
+{% set company = {"ticker": tickers[0] if tickers else "PEER", "name": company_name if company_name else "Peer Group", "exchange": "NSE"} %}
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-brand"><span class="page-header-brand-text">equilis — india</span></div>
+    <div class="page-header-company">
+      <span class="page-header-company-text">Peer Comparison</span>
+    </div>
+    <div class="page-header-date"><span class="page-header-date-text">{{ report_date | date_fmt }}</span></div>
+  </div>
+  <div class="section-body">
+    <div class="section-title">Comparative Metrics</div>
+
+    {% if errors %}
+    <div class="subsection-title">Data Errors</div>
+    {% for t, err in errors.items() %}
+    <div class="alert alert-warn" style="margin-bottom:2mm;"><strong>{{ t }}:</strong> {{ err }}</div>
+    {% endfor %}
+    {% endif %}
+
+    {% if comparison_table %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="text-align:left">Metric</th>
+          {% for t in tickers %}
+          <th>{{ t }}</th>
+          {% endfor %}
+          <th>Sector Median</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for metric, row in comparison_table.items() %}
+        <tr>
+          <td>{{ metric }}</td>
+          {% for t in tickers %}
+          <td>{{ row.get(t) | na("—") if row.get else "—" }}</td>
+          {% endfor %}
+          <td>{{ sector_medians.get(metric) | na("—") if sector_medians.get else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info">No comparison data available.</div>
+    {% endif %}
+
+    {% if peers %}
+    <div class="subsection-title" style="margin-top:5mm;">Peer Details</div>
+    {% for p in peers %}
+    <div class="muted small">{{ p }}</div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="subsection-title" style="margin-top:6mm;">Disclaimer</div>
+    <div class="compliance-box">
+      <div class="compliance-box-title">Important Notice</div>
+      <div class="full-disclaimer">{{ disclaimer }}</div>
+    </div>
+  </div>
+  <div class="page-footer">
+    <div class="page-footer-text">
+      Peer comparison report · equilis-india · Not investment advice · {{ report_date | date_fmt }}
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

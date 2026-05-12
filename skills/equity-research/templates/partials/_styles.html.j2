@@ -1,0 +1,654 @@
+<style>
+/* ============================================================
+   equilis-india — Premium Report Design System
+   Weasyprint-compatible CSS (no position:fixed, no flexbox wrap issues)
+   ============================================================ */
+
+/* --- CSS Variables --- */
+:root {
+  --navy-deep:    #070F1C;
+  --navy-mid:     #0D1B2E;
+  --navy-light:   #142338;
+  --gold:         #C8A951;
+  --gold-light:   #D9BB6E;
+  --gold-dim:     #8A6F2E;
+  --white:        #FFFFFF;
+  --off-white:    #F4F1EB;
+  --text-primary: #E8E0D0;
+  --text-muted:   #9A8F7E;
+  --green:        #2ECC71;
+  --red:          #E74C3C;
+  --amber:        #F39C12;
+  --border:       rgba(200,169,81,0.25);
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body:    'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
+}
+
+/* --- Google Fonts (loaded at document level) --- */
+
+/* --- Reset & Base --- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--navy-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 9pt;
+  line-height: 1.55;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* --- Print page setup --- */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+/* --- Page break helpers --- */
+.page {
+  page-break-after: always;
+  page-break-inside: avoid;
+  min-height: 297mm;
+  width: 210mm;
+  overflow: hidden;
+  display: block;
+}
+.page:last-child { page-break-after: auto; }
+
+/* ============================================================
+   COVER PAGE
+   ============================================================ */
+.cover-page {
+  background: var(--navy-deep);
+  display: block;
+  position: relative;
+  padding: 0;
+}
+
+.cover-accent-bar {
+  background: var(--gold);
+  height: 4px;
+  width: 100%;
+  display: block;
+}
+
+.cover-header {
+  padding: 14mm 18mm 8mm;
+}
+
+.cover-brand {
+  font-family: var(--font-display);
+  font-size: 11pt;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.cover-tagline {
+  font-size: 7.5pt;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+.cover-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 8mm 18mm;
+}
+
+.cover-company-block {
+  padding: 0 18mm;
+}
+
+.cover-company-name {
+  font-family: var(--font-display);
+  font-size: 26pt;
+  color: var(--white);
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+.cover-ticker-row {
+  display: block;
+  margin-bottom: 10mm;
+}
+
+.cover-ticker {
+  font-family: var(--font-mono);
+  font-size: 10pt;
+  color: var(--gold);
+  background: rgba(200,169,81,0.12);
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-right: 8px;
+}
+
+.cover-sector {
+  font-size: 8.5pt;
+  color: var(--text-muted);
+}
+
+/* --- KPI Grid --- */
+.kpi-grid {
+  display: table;
+  width: calc(100% - 36mm);
+  margin: 0 18mm;
+  border-collapse: separate;
+  border-spacing: 4mm 4mm;
+}
+
+.kpi-row { display: table-row; }
+
+.kpi-card {
+  display: table-cell;
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6mm 5mm;
+  width: 25%;
+  vertical-align: top;
+}
+
+.kpi-label {
+  font-size: 6.5pt;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 3px;
+}
+
+.kpi-value {
+  font-family: var(--font-mono);
+  font-size: 13pt;
+  color: var(--gold);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.kpi-sub {
+  font-size: 6.5pt;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* --- Cover Footer --- */
+.cover-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--navy-mid);
+  border-top: 1px solid var(--border);
+  padding: 5mm 18mm;
+  display: table;
+  width: 100%;
+}
+
+.cover-footer-left,
+.cover-footer-right {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.cover-footer-right {
+  text-align: right;
+}
+
+.cover-footer-text {
+  font-size: 6.5pt;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   PAGE HEADER & FOOTER (running on inner pages)
+   ============================================================ */
+.page-header {
+  background: var(--navy-mid);
+  border-bottom: 1px solid var(--border);
+  padding: 3.5mm 18mm;
+  display: table;
+  width: 100%;
+}
+
+.page-header-brand,
+.page-header-company,
+.page-header-date {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.page-header-company { text-align: center; }
+.page-header-date    { text-align: right; }
+
+.page-header-brand-text {
+  font-family: var(--font-display);
+  font-size: 7.5pt;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+}
+
+.page-header-company-text {
+  font-size: 8pt;
+  color: var(--text-primary);
+}
+
+.page-header-ticker {
+  font-family: var(--font-mono);
+  font-size: 7pt;
+  color: var(--gold);
+  margin-left: 6px;
+}
+
+.page-header-date-text {
+  font-size: 7pt;
+  color: var(--text-muted);
+}
+
+.page-footer {
+  background: var(--navy-mid);
+  border-top: 1px solid var(--border);
+  padding: 3mm 18mm;
+}
+
+.page-footer-text {
+  font-size: 6pt;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ============================================================
+   SECTION LAYOUT
+   ============================================================ */
+.section-body {
+  padding: 8mm 18mm;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 14pt;
+  color: var(--gold);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 3mm;
+  margin-bottom: 6mm;
+}
+
+.subsection-title {
+  font-family: var(--font-body);
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: var(--gold-light);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 4mm;
+  margin-top: 5mm;
+}
+
+.two-col {
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 6mm 0;
+}
+
+.col-left, .col-right {
+  display: table-cell;
+  width: 50%;
+  vertical-align: top;
+}
+
+/* ============================================================
+   DATA TABLES
+   ============================================================ */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 7.5pt;
+  margin-bottom: 5mm;
+}
+
+.data-table th {
+  background: var(--navy-light);
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: 6.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3mm 4mm;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+
+.data-table th:first-child { text-align: left; }
+
+.data-table td {
+  padding: 2.5mm 4mm;
+  border-bottom: 1px solid rgba(200,169,81,0.1);
+  font-family: var(--font-mono);
+  font-size: 7.5pt;
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.data-table td:first-child {
+  font-family: var(--font-body);
+  font-size: 7.5pt;
+  text-align: left;
+  color: var(--text-muted);
+}
+
+.data-table tr:nth-child(even) td {
+  background: rgba(255,255,255,0.02);
+}
+
+/* ============================================================
+   SIGNAL BADGES
+   ============================================================ */
+.signal-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 6.5pt;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.signal-high  { background: rgba(46,204,113,0.18);  color: #2ECC71; border: 1px solid rgba(46,204,113,0.4);  }
+.signal-med   { background: rgba(243,156,18,0.18);  color: #F39C12; border: 1px solid rgba(243,156,18,0.4);  }
+.signal-low   { background: rgba(231,76,60,0.18);   color: #E74C3C; border: 1px solid rgba(231,76,60,0.4);   }
+.signal-red   { background: rgba(231,76,60,0.25);   color: #FF6B6B; border: 1px solid rgba(231,76,60,0.6);   }
+
+/* ============================================================
+   DUPONT GRID
+   ============================================================ */
+.dupont-grid {
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 3mm 0;
+  margin-bottom: 4mm;
+}
+
+.dupont-factor {
+  display: table-cell;
+  background: var(--navy-light);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4mm;
+  text-align: center;
+  vertical-align: middle;
+  width: 33%;
+}
+
+.dupont-factor-label {
+  font-size: 6.5pt;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 2px;
+}
+
+.dupont-factor-value {
+  font-family: var(--font-mono);
+  font-size: 13pt;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.dupont-operator {
+  display: table-cell;
+  vertical-align: middle;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14pt;
+  width: 8mm;
+}
+
+.dupont-equation {
+  font-size: 7pt;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 3mm;
+  font-family: var(--font-mono);
+}
+
+/* ============================================================
+   SCENARIO CARDS
+   ============================================================ */
+.scenario-grid {
+  display: table;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 4mm 0;
+}
+
+.scenario-card {
+  display: table-cell;
+  width: 33%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5mm;
+  vertical-align: top;
+}
+
+.scenario-card.bear { border-color: rgba(231,76,60,0.5);  background: rgba(231,76,60,0.06);  }
+.scenario-card.base { border-color: var(--border);         background: var(--navy-mid);       }
+.scenario-card.bull { border-color: rgba(46,204,113,0.5); background: rgba(46,204,113,0.06); }
+
+.scenario-label {
+  font-family: var(--font-display);
+  font-size: 9pt;
+  color: var(--gold);
+  margin-bottom: 3mm;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.scenario-card.bear .scenario-label { color: #E74C3C; }
+.scenario-card.bull .scenario-label { color: #2ECC71; }
+
+.scenario-row {
+  display: table;
+  width: 100%;
+  margin-bottom: 2mm;
+}
+
+.scenario-row-key {
+  display: table-cell;
+  font-size: 6.5pt;
+  color: var(--text-muted);
+  vertical-align: top;
+}
+
+.scenario-row-val {
+  display: table-cell;
+  font-family: var(--font-mono);
+  font-size: 7.5pt;
+  color: var(--text-primary);
+  text-align: right;
+  vertical-align: top;
+}
+
+/* ============================================================
+   RED FLAGS
+   ============================================================ */
+.red-flag-item {
+  display: table;
+  width: 100%;
+  margin-bottom: 3mm;
+  padding: 3mm 4mm;
+  border-radius: 4px;
+  border-left: 3px solid var(--border);
+}
+
+.rf-red    { border-left-color: #E74C3C; background: rgba(231,76,60,0.06); }
+.rf-yellow { border-left-color: #F39C12; background: rgba(243,156,18,0.06); }
+
+.red-flag-severity {
+  display: table-cell;
+  width: 60px;
+  vertical-align: top;
+}
+
+.red-flag-text {
+  display: table-cell;
+  vertical-align: top;
+  font-size: 7.5pt;
+  color: var(--text-primary);
+}
+
+.red-flag-category {
+  font-size: 6.5pt;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.clean-state {
+  padding: 5mm;
+  background: rgba(46,204,113,0.06);
+  border: 1px solid rgba(46,204,113,0.25);
+  border-radius: 4px;
+  font-size: 7.5pt;
+  color: #2ECC71;
+  text-align: center;
+}
+
+/* ============================================================
+   ALTMAN Z-SCORE
+   ============================================================ */
+.altman-zone {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10pt;
+  font-weight: 700;
+  padding: 3mm 8mm;
+  border-radius: 4px;
+  margin-bottom: 4mm;
+}
+
+.altman-zone.safe     { background: rgba(46,204,113,0.18);  color: #2ECC71; }
+.altman-zone.grey     { background: rgba(243,156,18,0.18);  color: #F39C12; }
+.altman-zone.distress { background: rgba(231,76,60,0.25);   color: #FF6B6B; }
+
+.altman-score {
+  font-family: var(--font-mono);
+  font-size: 22pt;
+  color: var(--gold);
+  font-weight: 700;
+  display: block;
+  margin-bottom: 2mm;
+}
+
+/* ============================================================
+   RATIO LISTS
+   ============================================================ */
+.ratio-list {
+  width: 100%;
+  margin-bottom: 4mm;
+}
+
+.ratio-item {
+  display: table;
+  width: 100%;
+  padding: 2mm 0;
+  border-bottom: 1px solid rgba(200,169,81,0.08);
+}
+
+.ratio-key {
+  display: table-cell;
+  font-size: 7pt;
+  color: var(--text-muted);
+  vertical-align: middle;
+  width: 55%;
+}
+
+.ratio-val {
+  display: table-cell;
+  font-family: var(--font-mono);
+  font-size: 8pt;
+  color: var(--text-primary);
+  text-align: right;
+  vertical-align: middle;
+}
+
+/* ============================================================
+   SOURCES
+   ============================================================ */
+.source-item {
+  display: table;
+  width: 100%;
+  margin-bottom: 2.5mm;
+  padding: 2.5mm 4mm;
+  background: var(--navy-mid);
+  border-left: 2px solid var(--border);
+}
+
+.source-ticker {
+  display: table-cell;
+  font-family: var(--font-mono);
+  font-size: 7pt;
+  color: var(--gold);
+  width: 60px;
+  vertical-align: middle;
+}
+
+.source-name {
+  display: table-cell;
+  font-size: 7pt;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+/* ============================================================
+   DISCLAIMER
+   ============================================================ */
+.compliance-box {
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5mm;
+  margin-bottom: 5mm;
+}
+
+.compliance-box-title {
+  font-size: 7pt;
+  font-weight: 700;
+  color: var(--gold-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 2mm;
+}
+
+.full-disclaimer {
+  font-size: 6.5pt;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   MISC UTILITIES
+   ============================================================ */
+.alert {
+  padding: 3mm 5mm;
+  border-radius: 4px;
+  font-size: 7.5pt;
+  margin-bottom: 4mm;
+}
+
+.alert-info { background: rgba(200,169,81,0.1); border-left: 3px solid var(--gold); color: var(--text-muted); }
+.alert-warn { background: rgba(243,156,18,0.1); border-left: 3px solid #F39C12;     color: var(--text-muted); }
+
+.value-positive { color: #2ECC71; }
+.value-negative { color: #E74C3C; }
+.value-neutral  { color: var(--text-muted); }
+
+.mono { font-family: var(--font-mono); }
+.gold { color: var(--gold); }
+.muted { color: var(--text-muted); }
+.small { font-size: 6.5pt; }
+</style>

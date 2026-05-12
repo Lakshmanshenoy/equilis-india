@@ -58,6 +58,7 @@ program
   .description("Generate full PDF research report")
   .option("-o, --output-dir <dir>", "Output directory (default ~/Downloads/equilis-reports)")
   .option("--exchange <exchange>", "Exchange: NSE | BSE", "NSE")
+  .option("--format <type>", "pdf | html (html for preview/debug)", "pdf")
   .action(reportCommand);
 
 registerWarmup(program);

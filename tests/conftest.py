@@ -15,6 +15,16 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# WeasyPrint needs Homebrew's lib dir on macOS (Apple Silicon) for pango/gobject.
+# Set before any weasyprint import so cffi.dlopen() can find the shared libraries.
+_brew_lib = "/opt/homebrew/lib"
+if os.path.isdir(_brew_lib):
+    existing = os.environ.get("DYLD_LIBRARY_PATH", "")
+    if _brew_lib not in existing:
+        os.environ["DYLD_LIBRARY_PATH"] = (
+            f"{_brew_lib}:{existing}" if existing else _brew_lib
+        )
+
 from core.models.company import (
     BalanceSheetData,
     CashFlowData,

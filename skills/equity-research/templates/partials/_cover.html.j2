@@ -1,0 +1,95 @@
+<!-- Cover Page -->
+<div class="page cover-page">
+  <div class="cover-accent-bar"></div>
+
+  <div class="cover-header">
+    <div class="cover-brand">equilis — india</div>
+    <div class="cover-tagline">Equity Research · Analytical Report</div>
+  </div>
+
+  <hr class="cover-divider">
+
+  <div class="cover-company-block">
+    <div class="cover-company-name">{{ company.name | na("—") }}</div>
+    <div class="cover-ticker-row">
+      <span class="cover-ticker">{{ company.ticker }}</span>
+      <span class="cover-sector">{{ company.sector | na("") }}{% if company.industry %} · {{ company.industry }}{% endif %}</span>
+    </div>
+  </div>
+
+  <!-- 8 KPI Cards in 2 rows of 4 -->
+  <table class="kpi-grid">
+    <tr class="kpi-row">
+      <td class="kpi-card">
+        <div class="kpi-label">CMP</div>
+        <div class="kpi-value">{% if price %}₹{{ "%.2f"|format(price.cmp) }}{% else %}N/A{% endif %}</div>
+        <div class="kpi-sub">{% if price %}as of {{ price.fetched_at | date_fmt }}{% endif %}</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">Market Cap</div>
+        <div class="kpi-value">{{ market.market_cap | inr if market else "N/A" }}</div>
+        <div class="kpi-sub">{{ company.exchange }}</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">P/E (TTM)</div>
+        <div class="kpi-value">{{ ratios.pe_ttm | ratio if ratios.pe_ttm else "N/A" }}</div>
+        <div class="kpi-sub">Trailing twelve months</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">EV / EBITDA</div>
+        <div class="kpi-value">{{ ratios.ev_ebitda | ratio if ratios.ev_ebitda else "N/A" }}</div>
+        <div class="kpi-sub">Enterprise multiple</div>
+      </td>
+    </tr>
+    <tr class="kpi-row">
+      <td class="kpi-card">
+        <div class="kpi-label">ROE</div>
+        <div class="kpi-value">{{ ratios.roe | pct if ratios.roe else "N/A" }}</div>
+        <div class="kpi-sub">Return on equity</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">ROCE</div>
+        <div class="kpi-value">{{ ratios.roce | pct if ratios.roce else "N/A" }}</div>
+        <div class="kpi-sub">Return on capital employed</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">Revenue (TTM)</div>
+        <div class="kpi-value">{{ ratios.revenue_ttm | inr if ratios.revenue_ttm else "N/A" }}</div>
+        <div class="kpi-sub">Trailing twelve months</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">PAT (TTM)</div>
+        <div class="kpi-value">{{ ratios.pat_ttm | inr if ratios.pat_ttm else "N/A" }}</div>
+        <div class="kpi-sub">Net profit after tax</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Scenario preview band -->
+  {% if scenarios %}
+  <div style="padding: 4mm 18mm; margin-top: 3mm;">
+    <table class="scenario-grid">
+      {% for sc in scenarios %}
+      <td class="scenario-card {{ sc.label | lower }}">
+        <div class="scenario-label">{{ sc.label }}</div>
+        <div class="scenario-row">
+          <span class="scenario-row-key">PAT CAGR</span>
+          <span class="scenario-row-val">{{ sc.assumption_pat_growth | signed }}</span>
+        </div>
+      </td>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="cover-footer">
+    <div class="cover-footer-left">
+      <div class="cover-footer-text">Report Date: {{ report_date | date_fmt }}</div>
+      <div class="cover-footer-text">Version {{ report_version }} · equilis-india</div>
+    </div>
+    <div class="cover-footer-right">
+      <div class="cover-footer-text">Not investment advice. Research purposes only.</div>
+      <div class="cover-footer-text">equilis-india is not a SEBI-registered analyst.</div>
+    </div>
+  </div>
+</div>

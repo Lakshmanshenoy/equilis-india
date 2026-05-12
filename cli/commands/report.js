@@ -14,7 +14,8 @@ const PIPELINE_SCRIPT = path.join(REPO_ROOT, "core", "_cli_runner.py");
 const DEFAULT_OUTPUT_DIR = path.join(os.homedir(), "Downloads", "equilis-reports");
 
 export async function reportCommand(ticker, options) {
-  printHeader(`Generating PDF Report — ${ticker.toUpperCase()}`);
+  const fmt_type = options.format || "pdf";
+  printHeader(`Generating ${fmt_type.toUpperCase()} Report — ${ticker.toUpperCase()}`);
 
   const outputDir = options.outputDir || DEFAULT_OUTPUT_DIR;
   const args = [
@@ -24,6 +25,7 @@ export async function reportCommand(ticker, options) {
     "--output", "pdf",
     "--output-dir", outputDir,
     "--exchange", options.exchange || "NSE",
+    "--format", fmt_type,
   ];
 
   try {

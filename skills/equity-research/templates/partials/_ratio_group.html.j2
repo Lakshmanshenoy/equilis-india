@@ -1,0 +1,116 @@
+<!-- Ratio Groups: Profitability, Leverage, Valuation, Efficiency -->
+<div class="two-col">
+  <!-- Left column: Profitability + Valuation -->
+  <div class="col-left">
+    <div class="subsection-title">Profitability</div>
+    <div class="ratio-list">
+      <div class="ratio-item">
+        <span class="ratio-key">ROE</span>
+        <span class="ratio-val">{{ ratios.roe | pct if ratios.roe is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">ROCE</span>
+        <span class="ratio-val">{{ ratios.roce | pct if ratios.roce is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">ROA</span>
+        <span class="ratio-val">{{ ratios.roa | pct if ratios.roa is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Gross Margin</span>
+        <span class="ratio-val">{{ ratios.gross_margin | pct if ratios.gross_margin is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">EBITDA Margin</span>
+        <span class="ratio-val">{{ ratios.ebitda_margin | pct if ratios.ebitda_margin is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">PAT Margin</span>
+        <span class="ratio-val">{{ ratios.pat_margin | pct if ratios.pat_margin is not none else "—" }}</span>
+      </div>
+    </div>
+
+    <div class="subsection-title" style="margin-top:4mm;">Valuation</div>
+    <div class="ratio-list">
+      <div class="ratio-item">
+        <span class="ratio-key">P/E (TTM)</span>
+        <span class="ratio-val">{{ ratios.pe_ttm | ratio if ratios.pe_ttm is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">P/B</span>
+        <span class="ratio-val">{{ ratios.pb | ratio if ratios.pb is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">EV/EBITDA</span>
+        <span class="ratio-val">{{ ratios.ev_ebitda | ratio if ratios.ev_ebitda is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">EV/Sales</span>
+        <span class="ratio-val">{{ ratios.ev_sales | ratio if ratios.ev_sales is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">PEG</span>
+        <span class="ratio-val">{{ ratios.peg | ratio if ratios.peg is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Div. Yield</span>
+        <span class="ratio-val">{{ ratios.div_yield | pct if ratios.div_yield is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">EPS (TTM)</span>
+        <span class="ratio-val">{% if ratios.eps_ttm is not none %}₹{{ "%.2f"|format(ratios.eps_ttm) }}{% else %}—{% endif %}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: Leverage + Efficiency -->
+  <div class="col-right">
+    <div class="subsection-title">Leverage &amp; Liquidity</div>
+    <div class="ratio-list">
+      <div class="ratio-item">
+        <span class="ratio-key">Debt / Equity</span>
+        <span class="ratio-val">{{ ratios.debt_to_equity | ratio if ratios.debt_to_equity is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Net Debt / EBITDA</span>
+        <span class="ratio-val">{{ ratios.net_debt_ebitda | ratio if ratios.net_debt_ebitda is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Interest Coverage</span>
+        <span class="ratio-val">{{ ratios.interest_coverage | ratio if ratios.interest_coverage is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Current Ratio</span>
+        <span class="ratio-val">{{ ratios.current_ratio | ratio if ratios.current_ratio is not none else "—" }}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Quick Ratio</span>
+        <span class="ratio-val">{{ ratios.quick_ratio | ratio if ratios.quick_ratio is not none else "—" }}</span>
+      </div>
+    </div>
+
+    <div class="subsection-title" style="margin-top:4mm;">Working Capital Efficiency</div>
+    <div class="ratio-list">
+      <div class="ratio-item">
+        <span class="ratio-key">Receivables Days</span>
+        <span class="ratio-val">{% if ratios.receivables_days is not none %}{{ "%.0f"|format(ratios.receivables_days) }} days{% else %}—{% endif %}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Inventory Days</span>
+        <span class="ratio-val">{% if ratios.inventory_days is not none %}{{ "%.0f"|format(ratios.inventory_days) }} days{% else %}—{% endif %}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Payables Days</span>
+        <span class="ratio-val">{% if ratios.payables_days is not none %}{{ "%.0f"|format(ratios.payables_days) }} days{% else %}—{% endif %}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Cash Conversion Cycle</span>
+        <span class="ratio-val">{% if ratios.cash_conversion_cycle is not none %}{{ "%.0f"|format(ratios.cash_conversion_cycle) }} days{% else %}—{% endif %}</span>
+      </div>
+      <div class="ratio-item">
+        <span class="ratio-key">Asset Turnover</span>
+        <span class="ratio-val">{{ ratios.asset_turnover | ratio if ratios.asset_turnover is not none else "—" }}</span>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,49 @@
+<!-- Scenario Analysis Band -->
+{% if scenarios %}
+<table class="scenario-grid">
+  {% for sc in scenarios %}
+  <td class="scenario-card {{ sc.label | lower | replace(' ', '-') }}">
+    <div class="scenario-label">{{ sc.label }}</div>
+
+    <div class="scenario-row">
+      <span class="scenario-row-key">PAT CAGR</span>
+      <span class="scenario-row-val">{{ sc.assumption_pat_growth | signed if sc.assumption_pat_growth is not none else "N/A" }}</span>
+    </div>
+
+    {% if sc.projected_pat %}
+    <div class="scenario-row">
+      <span class="scenario-row-key">Projected PAT</span>
+      <span class="scenario-row-val">{{ sc.projected_pat | inr }}</span>
+    </div>
+    {% endif %}
+
+    {% if sc.projected_eps %}
+    <div class="scenario-row">
+      <span class="scenario-row-key">Projected EPS</span>
+      <span class="scenario-row-val">₹{{ "%.1f"|format(sc.projected_eps) }}</span>
+    </div>
+    {% endif %}
+
+    {% if sc.pe_scenarios %}
+    <div style="margin-top:3mm; border-top:1px solid rgba(200,169,81,0.15); padding-top:3mm;">
+      <div class="muted small" style="margin-bottom:2mm;">PE Matrix</div>
+      {% for pe_label, val in sc.pe_scenarios.items() %}
+      <div class="scenario-row">
+        <span class="scenario-row-key">{{ pe_label }}</span>
+        <span class="scenario-row-val">₹{{ "%.0f"|format(val) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </td>
+  {% endfor %}
+</table>
+{% if scenarios[0].compliance_note is defined or scenarios|length > 0 %}
+<div class="alert alert-warn" style="margin-top:3mm;">
+  <strong>Note:</strong> Scenario projections are analytical estimates only.
+  They do not constitute a price target or recommendation.
+</div>
+{% endif %}
+{% else %}
+<div class="alert alert-info">Scenario analysis not available.</div>
+{% endif %}

@@ -1,0 +1,49 @@
+<!-- Cash Flow Quality -->
+{% if cf_quality %}
+  {% set cfq = cf_quality %}
+  <div style="margin-bottom:3mm;">
+    <span>Overall Signal: </span>
+    <span class="signal-badge {{ cfq.overall_signal | signal_cls }}">{{ cfq.overall_signal }}</span>
+  </div>
+
+  {% if cfq.by_year %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="text-align:left">Year</th>
+        <th>CFO</th>
+        <th>PAT</th>
+        <th>CFO/PAT</th>
+        <th>Signal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in cfq.by_year %}
+      <tr>
+        <td>{{ row.fiscal_year | na("—") }}</td>
+        <td>{{ row.cfo | inr if row.cfo is not none else "—" }}</td>
+        <td>{{ row.pat | inr if row.pat is not none else "—" }}</td>
+        <td class="mono">{{ "%.2f"|format(row.cfo_pat_ratio) if row.cfo_pat_ratio is not none else "—" }}</td>
+        <td>
+          {% if row.quality_signal %}
+          <span class="signal-badge {{ row.quality_signal | signal_cls }}">{{ row.quality_signal }}</span>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if cfq.observations %}
+  <div class="subsection-title">Observations</div>
+  {% for obs in cfq.observations %}
+  {% if obs %}
+  <div class="muted small" style="margin-bottom:2mm;">· {{ obs }}</div>
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+
+{% else %}
+<div class="alert alert-info">Cash flow quality data not available.</div>
+{% endif %}

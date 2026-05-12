@@ -1,0 +1,12 @@
+<div class="page-header">
+  <div class="page-header-brand">
+    <span class="page-header-brand-text">equilis — india</span>
+  </div>
+  <div class="page-header-company">
+    <span class="page-header-company-text">{{ company.name | na("") }}</span>
+    <span class="page-header-ticker">{{ company.ticker }}</span>
+  </div>
+  <div class="page-header-date">
+    <span class="page-header-date-text">{{ report_date | date_fmt }}</span>
+  </div>
+</div>

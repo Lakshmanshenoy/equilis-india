@@ -1,0 +1,48 @@
+<!-- Altman Z-Score -->
+{% if altman %}
+  {% set zone = altman.zone if altman.zone is defined else altman.get('zone', 'UNKNOWN') if altman.get else 'UNKNOWN' %}
+  {% set score = altman.z_score if altman.z_score is defined else altman.get('z_score', none) if altman.get else none %}
+
+  <span class="altman-score">{{ "%.2f"|format(score) if score is not none else "N/A" }}</span>
+  <span class="altman-zone {{ zone | lower }}">{{ zone }}</span>
+
+  {% if altman.disclaimer is defined or altman.get %}
+  <div class="muted small" style="margin-top:3mm; margin-bottom:4mm;">
+    Altman Z-Score is an academic model calibrated on US manufacturing data (1968).
+    Interpret with caution for Indian companies, service sectors, and financial entities.
+  </div>
+  {% endif %}
+
+  {% set x1 = altman.x1 if altman.x1 is defined else altman.get('x1', none) if altman.get else none %}
+  {% set x2 = altman.x2 if altman.x2 is defined else altman.get('x2', none) if altman.get else none %}
+  {% set x3 = altman.x3 if altman.x3 is defined else altman.get('x3', none) if altman.get else none %}
+  {% set x4 = altman.x4 if altman.x4 is defined else altman.get('x4', none) if altman.get else none %}
+  {% set x5 = altman.x5 if altman.x5 is defined else altman.get('x5', none) if altman.get else none %}
+
+  {% if x1 is not none or x2 is not none %}
+  <table class="data-table" style="margin-top:3mm;">
+    <thead>
+      <tr>
+        <th style="text-align:left">Factor</th>
+        <th>Description</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>X1</td><td style="text-align:left; font-family:var(--font-body);">Working Capital / Total Assets</td>
+          <td>{{ "%.4f"|format(x1) if x1 is not none else "N/A" }}</td></tr>
+      <tr><td>X2</td><td style="text-align:left; font-family:var(--font-body);">Retained Earnings / Total Assets</td>
+          <td>{{ "%.4f"|format(x2) if x2 is not none else "N/A" }}</td></tr>
+      <tr><td>X3</td><td style="text-align:left; font-family:var(--font-body);">EBIT / Total Assets</td>
+          <td>{{ "%.4f"|format(x3) if x3 is not none else "N/A" }}</td></tr>
+      <tr><td>X4</td><td style="text-align:left; font-family:var(--font-body);">Market Cap / Total Liabilities</td>
+          <td>{{ "%.4f"|format(x4) if x4 is not none else "N/A" }}</td></tr>
+      <tr><td>X5</td><td style="text-align:left; font-family:var(--font-body);">Revenue / Total Assets</td>
+          <td>{{ "%.4f"|format(x5) if x5 is not none else "N/A" }}</td></tr>
+    </tbody>
+  </table>
+  {% endif %}
+
+{% else %}
+<div class="alert alert-info">Altman Z-Score not computed (insufficient balance sheet data or financial sector).</div>
+{% endif %}

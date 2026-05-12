@@ -1,0 +1,73 @@
+<!-- DuPont Decomposition -->
+{% if dupont %}
+  {% set dp = dupont %}
+  {% set npm = dp.by_year[0].net_profit_margin if dp.by_year else none %}
+  {% set at  = dp.by_year[0].asset_turnover    if dp.by_year else none %}
+  {% set em  = dp.by_year[0].equity_multiplier if dp.by_year else none %}
+  {% set roe_dp = dp.by_year[0].roe_dupont     if dp.by_year else none %}
+
+  <table class="dupont-grid">
+    <tr>
+      <td class="dupont-factor">
+        <div class="dupont-factor-label">Net Profit Margin</div>
+        <div class="dupont-factor-value">{{ npm | pct if npm else ratios.pat_margin | pct if ratios.pat_margin else "N/A" }}</div>
+      </td>
+      <td class="dupont-operator">×</td>
+      <td class="dupont-factor">
+        <div class="dupont-factor-label">Asset Turnover</div>
+        <div class="dupont-factor-value">{{ at | ratio if at else ratios.asset_turnover | ratio if ratios.asset_turnover else "N/A" }}</div>
+      </td>
+      <td class="dupont-operator">×</td>
+      <td class="dupont-factor">
+        <div class="dupont-factor-label">Equity Multiplier</div>
+        <div class="dupont-factor-value">{{ em | ratio if em else "N/A" }}</div>
+      </td>
+      <td class="dupont-operator">=</td>
+      <td class="dupont-factor">
+        <div class="dupont-factor-label">ROE (DuPont)</div>
+        <div class="dupont-factor-value">{{ roe_dp | pct if roe_dp else ratios.roe | pct if ratios.roe else "N/A" }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="dupont-equation">ROE = Net Profit Margin × Asset Turnover × Equity Multiplier</div>
+
+  {% if dp.driver_observation %}
+  <div class="alert alert-info" style="margin-top:3mm;">
+    <strong>Observation:</strong> {{ dp.driver_observation }}
+  </div>
+  {% endif %}
+
+  {% if dp.trend_note %}
+  <div class="muted small" style="margin-top:2mm;">{{ dp.trend_note }}</div>
+  {% endif %}
+
+  {% if dp.by_year and dp.by_year|length > 1 %}
+  <div class="subsection-title" style="margin-top:5mm;">Multi-Year DuPont</div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="text-align:left">Year</th>
+        <th>Net Profit Margin</th>
+        <th>Asset Turnover</th>
+        <th>Equity Multiplier</th>
+        <th>ROE (DuPont)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in dp.by_year %}
+      <tr>
+        <td>{{ row.fiscal_year | na("—") }}</td>
+        <td>{{ row.net_profit_margin | pct if row.net_profit_margin is not none else "—" }}</td>
+        <td>{{ row.asset_turnover    | ratio if row.asset_turnover    is not none else "—" }}</td>
+        <td>{{ row.equity_multiplier | ratio if row.equity_multiplier is not none else "—" }}</td>
+        <td>{{ row.roe_dupont        | pct   if row.roe_dupont        is not none else "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+{% else %}
+<div class="alert alert-info">DuPont decomposition data not available.</div>
+{% endif %}

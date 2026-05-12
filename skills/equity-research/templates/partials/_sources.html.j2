@@ -1,0 +1,15 @@
+<!-- Data Sources -->
+{% if sources %}
+  {% for src in sources %}
+  <div class="source-item">
+    <div class="source-ticker">{{ src.plugin | na(src.source | na("")) }}</div>
+    <div class="source-name">
+      {{ src.label | na(src.data_type | na("")) }}
+      {% if src.fetched_at %} · {{ src.fetched_at | date_fmt }}{% endif %}
+      {% if src.url %} · <span class="muted">{{ src.url[:60] }}{% if src.url|length > 60 %}…{% endif %}</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="muted small">Source attribution data not available for this report.</div>
+{% endif %}

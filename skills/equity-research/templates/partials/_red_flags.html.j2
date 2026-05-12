@@ -1,0 +1,27 @@
+<!-- Red Flags -->
+{% if red_flags %}
+  {% if red_flags.flags %}
+    {% for flag in red_flags.flags %}
+    <div class="red-flag-item {{ 'rf-red' if flag.severity == 'RED' else 'rf-yellow' }}">
+      <div class="red-flag-severity">
+        <span class="signal-badge {{ 'signal-red' if flag.severity == 'RED' else 'signal-med' }}">
+          {{ flag.severity | na("?") }}
+        </span>
+      </div>
+      <div class="red-flag-text">
+        {{ flag.observation | na("No detail") }}
+        <div class="red-flag-category">{{ flag.category | na("") }}{% if flag.flag_id %} · {{ flag.flag_id }}{% endif %}</div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="muted small" style="margin-top:3mm;">
+      Red: {{ red_flags.red_count }} · Yellow: {{ red_flags.yellow_count }}
+      {% if red_flags.summary %} · {{ red_flags.summary }}{% endif %}
+    </div>
+  {% else %}
+    <div class="clean-state">✓ No red flags identified in the available data.</div>
+  {% endif %}
+{% else %}
+  <div class="clean-state">No red flag data available.</div>
+{% endif %}
